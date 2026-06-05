@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ScholarVoice - Biến PDF thành bài giảng có giọng đọc tiếng Việt bằng AI">
+  <title>ScholarVoice - AI PDF Giảng Viên</title>
+  <link rel="icon" href="data:,">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <script defer src="lib/pdfjs/pdf.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       MODAL: Nhập API Key
+       ============================================================ -->
+  <div id="api-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2>⚙️ Cài Đặt AI</h2>
+
+      <label class="modal-label">Nguồn AI:</label>
+      <select id="ai-provider" class="modal-input" style="margin-bottom:12px;cursor:pointer;">
+        <option value="gemini">☁️ Gemini API (Online)</option>
+        <option value="nvidia">🟢 NVIDIA API</option>
+        <option value="openrouter">🔗 OpenRouter (Multi-model)</option>
+        <option value="cloudflare">☁️ Cloudflare Workers AI</option>
+        <option value="ollama">🖥️ Ollama (Chạy local trên máy)</option>
+      </select>
+
+      <div id="gemini-settings">
+        <p class="modal-desc">
+          Nhập Google Gemini API Key. Lấy miễn phí tại
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+        </p>
+        <label class="modal-label">API Key:</label>
+        <input type="password" id="api-key-input" class="modal-input" placeholder="Dán Gemini API key vào đây..." autocomplete="off" spellcheck="false">
+        <label class="modal-label">Model:</label>
+        <input type="text" id="gemini-model" class="modal-input" placeholder="gemini-2.0-flash" value="gemini-2.0-flash" autocomplete="off">
+      </div>
+
+      <div id="nvidia-settings" class="hidden">
+        <p class="modal-desc">Dùng API từ <a href="https://build.nvidia.com" target="_blank">build.nvidia.com</a>.</p>
+        <label class="modal-label">API Key:</label>
+        <input type="password" id="nvidia-key-input" class="modal-input" placeholder="nvapi-..." autocomplete="off" spellcheck="false">
+        <label class="modal-label">Model:</label>
+        <input type="text" id="nvidia-model" class="modal-input" placeholder="deepseek-ai/deepseek-v4-flash" value="deepseek-ai/deepseek-v4-flash" autocomplete="off">
+        <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+          <input type="checkbox" id="nvidia-vision"> Model hỗ trợ đọc ảnh (Vision)
+        </label>
+      </div>
+
+      <div id="openrouter-settings" class="hidden">
+        <p class="modal-desc">Dùng API từ <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a> (200+ model, có model miễn phí).</p>
+        <label class="modal-label">API Key:</label>
+        <input type="password" id="openrouter-key-input" class="modal-input" placeholder="sk-or-v1-..." autocomplete="off" spellcheck="false">
+        <label class="modal-label">Model:</label>
+        <input type="text" id="openrouter-model" class="modal-input" placeholder="google/gemini-2.0-flash-001" value="google/gemini-2.0-flash-001" autocomplete="off">
+        <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
+          <input type="checkbox" id="openrouter-vision" checked> Model hỗ trợ đọc ảnh (Vision)
+        </label>
+      </div>
+
+      <div id="cloudflare-settings" class="hidden">
+        <p class="modal-desc">Dùng <a href="https://developers.cloudflare.com/workers-ai/" target="_blank">Cloudflare Workers AI</a> REST API.</p>
+        <label class="modal-label">Account ID:</label>
+        <input type="text" id="cf-account-id" class="modal-input" placeholder="Nhập Cloudflare Account ID..." autocomplete="off">
+        <label class="modal-label">API Token:</label>
+        <input type="password" id="cf-api-token" class="modal-input" placeholder="Nhập Workers AI API Token..." autocomplete="off" spellcheck="false">
+        <label class="modal-label">Model:</label>
+        <input type="text" id="cf-model" class="modal-input" placeholder="@cf/meta/llama-3.2-3b-instruct" value="@cf/meta/llama-3.2-3b-instruct" autocomplete="off">
+      </div>
+
+      <div id="ollama-settings" class="hidden">
+        <p class="modal-desc">Chạy AI trên máy với <a href="https://ollama.com" target="_blank">Ollama</a>.<br>
+          <code style="background:rgba(255,255,255,0.06);padding:3px 8px;border-radius:4px;font-size:0.85rem;">ollama pull gemma4:e4b</code></p>
+        <label class="modal-label">Tên model:</label>
+        <input type="text" id="ollama-model" class="modal-input" placeholder="gemma4:e4b" value="gemma4:e4b" autocomplete="off">
+        <label class="modal-label">Ollama URL:</label>
+        <input type="text" id="ollama-url" class="modal-input" placeholder="http://localhost:11434" value="http://localhost:11434" autocomplete="off">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;cursor:pointer;">
+          <input type="checkbox" id="ollama-vision" checked style="accent-color:var(--accent);"> Model hỗ trợ đọc ảnh (vision)
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button id="close-modal" class="btn-ghost">Đóng</button>
+        <button id="save-api-key" class="btn-primary">Lưu cài đặt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header id="app-header">
+    <div class="logo">
+      <span class="logo-icon">📚</span>
+      <h1>ScholarVoice</h1>
+    </div>
+    <div class="header-actions">
+      <button id="export-cache-btn" title="Lưu toàn bộ âm thanh ra file" disabled>💾 Lưu</button>
+      <button id="import-cache-btn" title="Tải lại file âm thanh đã lưu">📂 Mở</button>
+      <input type="file" id="cache-file-input" accept=".json" hidden>
+      <button id="clear-cache-btn" title="Xoá toàn bộ cache, làm lại dữ liệu mới">🗑️ Làm mới</button>
+      <button id="settings-btn">⚙️ Cài đặt</button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       LANDING PAGE
+       ============================================================ -->
+  <div id="landing-page">
+    <div class="landing-bg"></div>
+
+    <section class="hero">
+      <div class="hero-icon">🎓</div>
+      <h1 class="hero-title">ScholarVoice</h1>
+      <p class="hero-subtitle">Biến PDF thành bài giảng có giọng đọc tiếng Việt bằng AI</p>
+      <p class="hero-models">Hỗ trợ Gemini &bull; OpenRouter &bull; NVIDIA &bull; Cloudflare &bull; Ollama</p>
+      <button id="start-btn" class="hero-btn">
+        <span>🚀 BẮT ĐẦU NGAY</span>
+      </button>
+    </section>
+
+    <section class="landing-section">
+      <h2 class="landing-heading">📖 Cách Sử Dụng</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-icon">⚙️</div>
+          <h3>Cài đặt API</h3>
+          <p>Vào Cài đặt, chọn nguồn AI (Gemini, OpenRouter...) rồi nhập API key. Có model miễn phí.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-icon">📄</div>
+          <h3>Tải PDF lên</h3>
+          <p>Kéo thả file PDF vào khung. Hỗ trợ PDF tối đa 100MB, mọi ngôn ngữ.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-icon">🎓</div>
+          <h3>Nghe giảng bài</h3>
+          <p>Nhấn "Đọc" để AI giảng nội dung trang. Chọn phong cách Lướt / Trung bình / Chi tiết.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-icon">💬</div>
+          <h3>Hỏi đáp thông minh</h3>
+          <p>Chat trực tiếp với AI về nội dung trang đang xem. Hỏi công thức, định nghĩa, ví dụ.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section warning-section">
+      <h2 class="landing-heading">⚠️ Lưu Ý Quan Trọng</h2>
+      <div class="warning-card">
+        <p><strong>Nội dung do AI tạo ra, KHÔNG cam kết chính xác 100%.</strong> Hãy luôn kiểm chứng thông tin với tài liệu gốc trước khi sử dụng cho mục đích học tập hoặc nghiên cứu.</p>
+        <ul>
+          <li>AI có thể diễn đạt sai công thức, số liệu, hoặc đưa ra thông tin không chính xác.</li>
+          <li>Cần API key từ <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (miễn phí) hoặc <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a> (có model miễn phí).</li>
+          <li><strong>Windows:</strong> Settings &gt; Time &amp; Language &gt; Language &gt; Add Vietnamese &gt; tick Text-to-Speech. <strong>macOS:</strong> System Preferences &gt; Accessibility &gt; Spoken Content &gt; System Voice &gt; Vietnamese. <strong>Linux:</strong> cài <code>espeak-ng</code>.</li>
+          <li><strong>Không sử dụng</strong> cho tài liệu pháp lý, y tế, hoặc các lĩnh vực yêu cầu độ chính xác tuyệt đối.</li>
+          <li>ScholarVoice là công cụ hỗ trợ học tập, không thay thế giảng viên thật.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <p>ScholarVoice v2.0 &bull; Powered by AI &bull; Made with ❤️</p>
+    </footer>
+  </div>
+
+  <!-- ============================================================
+       MAIN APP (hidden initially)
+       ============================================================ -->
+  <main id="app-main" class="hidden">
+
+    <section id="pdf-panel" class="panel">
+      <div id="upload-area">
+        <div class="upload-glow"></div>
+        <div class="upload-icon">📄</div>
+        <h3>Kéo thả file PDF vào đây</h3>
+        <p>hoặc nhấn để chọn file</p>
+        <span class="upload-hint">Hỗ trợ PDF tối đa 100MB</span>
+        <input type="file" id="pdf-input" accept=".pdf" hidden>
+      </div>
+
+      <div id="pdf-viewer" class="hidden">
+        <div id="canvas-container">
+          <canvas id="pdf-canvas"></canvas>
+        </div>
+        <div id="page-bar">
+          <button id="prev-page" class="nav-btn" disabled title="Trang trước">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+          </button>
+          <div class="page-center">
+            <span id="page-info">0 / 0</span>
+            <button id="teach-now" class="teach-btn" disabled title="Đọc trang này">🎓 Đọc</button>
+          </div>
+          <div class="zoom-controls">
+            <button id="zoom-out" class="zoom-btn" title="Thu nhỏ">−</button>
+            <span id="zoom-level">100%</span>
+            <button id="zoom-in" class="zoom-btn" title="Phóng to">+</button>
+            <button id="zoom-reset" class="zoom-btn zoom-reset" title="Vừa khung">⊡</button>
+          </div>
+          <button id="next-page" class="nav-btn" disabled title="Trang sau">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </button>
+        </div>
+        <div id="page-cache-bar" title="Trang đã có âm thanh"></div>
+        <div id="page-bottom-bar">
+          <label class="toggle-wrapper" title="Tự động đọc khi chuyển trang">
+            <input type="checkbox" id="auto-read-toggle">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Tự động đọc</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <div id="panel-divider"></div>
+
+    <section id="right-panel" class="panel">
+      <div id="voice-bar">
+        <div id="voice-indicator">
+          <span id="voice-icon">🔇</span>
+          <div class="voice-info">
+            <span id="voice-text">Chờ tải PDF...</span>
+            <div id="waveform" class="waveform hidden">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+        <div class="voice-right">
+          <button id="voice-toggle" class="voice-btn" title="Đổi giọng Nam/Nữ" style="width:auto;padding:0 8px;font-size:0.7rem;">👨 Nam</button>
+          <div id="speed-control">
+            <label for="speed-slider" id="speed-label">1.0x</label>
+            <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.1" value="1.0">
+          </div>
+          <div id="voice-controls">
+            <button id="btn-play-pause" class="voice-btn" title="Phát/Dừng" disabled>▶</button>
+            <button id="btn-stop" class="voice-btn" title="Dừng toàn bộ" disabled>⏹</button>
+            <button id="btn-retry" class="voice-btn retry-btn hidden" title="Thử lại gọi AI">🔁</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="seek-bar-wrapper">
+        <span id="seek-time">00:00</span>
+        <input type="range" id="seek-slider" min="0" max="100" value="0" disabled>
+        <span id="seek-duration">00:00</span>
+      </div>
+
+      <div id="style-bar">
+        <span class="style-label">Phong cách:</span>
+        <button class="style-btn active" data-style="medium" title="Giảng đầy đủ, ngắn gọn">📖 Trung bình</button>
+        <button class="style-btn" data-style="brief" title="Cực ngắn gọn, chỉ ý chính">⚡ Lướt</button>
+        <button class="style-btn" data-style="detailed" title="Giảng kỹ, chi tiết từng phần">🔬 Chi tiết</button>
+      </div>
+
+      <div id="custom-style-box">
+        <textarea id="custom-style-input" placeholder="Tuỳ chỉnh thêm, VD: nói chậm như thầy giáo già, thêm ví dụ hài hước, dùng giọng miền Nam..."></textarea>
+      </div>
+
+      <div id="chat-area">
+        <div id="chat-messages">
+          <div class="welcome-message">
+            <div class="welcome-icon">🤖</div>
+            <p>Tải PDF lên để bắt đầu học. Sau đó bạn có thể hỏi bất kỳ câu hỏi nào về nội dung!</p>
+          </div>
+        </div>
+        <div id="chat-input-area">
+          <input type="text" id="chat-input" placeholder="Hỏi về nội dung trang đang xem..." disabled autocomplete="off">
+          <button id="chat-send" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9 22,2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="debug-panel">
+        <button id="debug-toggle" title="Xem log API">🐛</button>
+        <div id="debug-log" class="hidden"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+
+  <!-- Inline fallback: đảm bảo nút BẮT ĐẦU NGAY hoạt động kể cả khi module bị lỗi -->
+  <script>
+    (function() {
+      var startBtn = document.getElementById('start-btn');
+      var landing = document.getElementById('landing-page');
+      var appMain = document.getElementById('app-main');
+      if (startBtn && landing && appMain) {
+        startBtn.addEventListener('click', function() {
+          landing.classList.add('hidden');
+          appMain.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        });
+      }
+    })();
+  </script>
+
+</body>
+</html>

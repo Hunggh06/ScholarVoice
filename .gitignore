@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+tts_cache/
+*.tmp
+.opencode/
+.env
