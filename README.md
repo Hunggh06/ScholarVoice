@@ -1,15 +1,15 @@
 # ScholarVoice 🎓
 
-**Turn PDFs into AI-powered Vietnamese lecture audio**
+**Turn PDFs into AI-powered lecture audio in any language**
 
-ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on their content in Vietnamese speech. It also supports intelligent Q&A about each page's content.
+ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on their content with voice in any language. It also supports intelligent Q&A about each page's content.
 
 ## Features
 
 - 📄 **PDF Viewer** — View PDFs directly in your browser
 - 🎓 **AI Lecture** — Choose from Brief / Medium / Detailed styles
 - 💬 **Smart Q&A** — Chat with AI about the content of the current page
-- 🎙️ **Vietnamese TTS** — Male/Female voices, adjustable speed
+- 🎙️ **Multi-language TTS** — Supports any language voice on your system, adjustable speed
 - 🔄 **Auto-read** — Auto-advance pages with continuous playback
 - 💾 **Audio Cache** — Export/Import voice cache
 - 🎭 **Custom Teacher Personality** — Add custom instructions like "speak slowly like an old professor", "add funny examples", "use Southern accent"...
