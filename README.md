@@ -15,13 +15,11 @@ ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI gi�
 
 ## Hỗ trợ AI
 
-| Nguồn | Model |
-|-------|-------|
-| ☁️ Gemini API | gemini-2.0-flash |
-| 🟢 NVIDIA API | deepseek-ai/deepseek-v4-flash |
-| 🔗 OpenRouter | 200+ model (có model miễn phí) |
-| ☁️ Cloudflare Workers AI | @cf/meta/llama-3.2-3b-instruct |
-| 🖥️ Ollama (local) | gemma4:e4b |
+- ☁️ Gemini API
+- 🟢 NVIDIA API
+- 🔗 OpenRouter
+- ☁️ Cloudflare Workers AI
+- 🖥️ Ollama (local)
 
 ## Cài đặt & Chạy
 
