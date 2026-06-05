@@ -252,7 +252,8 @@ class App {
 
     const populate = () => {
       const voices = this.ttsEngine.getAllVoices();
-      const current = sel.value;
+      if (!voices || voices.length === 0) return;
+      const savedName = this.ttsEngine._voiceName;
       sel.innerHTML = '';
 
       const groups = {};
@@ -262,6 +263,7 @@ class App {
         groups[lang].push(v);
       }
 
+      let foundSaved = false;
       const sortedLangs = Object.keys(groups).sort();
       for (const lang of sortedLangs) {
         const optgroup = document.createElement('optgroup');
@@ -271,15 +273,20 @@ class App {
           const opt = document.createElement('option');
           opt.value = v.name;
           opt.textContent = v.name.replace(/(Microsoft|Online|Natural|Windows|Mozilla|Google|Apple)\s*/g, '').trim() || v.name;
-          if (v.name === this.ttsEngine._voiceName) opt.selected = true;
+          if (v.name === savedName) {
+            opt.selected = true;
+            foundSaved = true;
+          }
           optgroup.appendChild(opt);
         }
         sel.appendChild(optgroup);
       }
 
-      if (!sel.value && voices.length > 0) {
+      if (!foundSaved && voices.length > 0) {
         sel.value = voices[0].name;
         this.ttsEngine.setVoiceByName(voices[0].name);
+      } else if (foundSaved) {
+        sel.value = savedName;
       }
     };
 
@@ -287,8 +294,8 @@ class App {
       this.ttsEngine.setVoiceByName(sel.value);
     });
 
-    this.ttsEngine.synth.addEventListener('voiceschanged', () => populate());
-    // Retry populate if voices load async
+    const onVoicesChanged = () => populate();
+    this.ttsEngine.synth.addEventListener('voiceschanged', onVoicesChanged);
     setTimeout(() => { if (sel.options.length === 0) populate(); }, 500);
     populate();
   }
