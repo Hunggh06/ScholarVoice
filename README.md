@@ -16,7 +16,7 @@ ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on
 
 ## 📺 Demo
 
-🎬 [Xem video demo trên YouTube](https://youtu.be/5NxqsOcQt3k?si=3elnOX1OBq9GqNoi)
+[![ScholarVoice Demo](https://img.youtube.com/vi/5NxqsOcQt3k/maxresdefault.jpg)](https://youtu.be/5NxqsOcQt3k)
 
 ## AI Providers
 
