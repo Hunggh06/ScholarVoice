@@ -5,3 +5,4 @@ tts_cache/
 *.tmp
 .opencode/
 .env
+Recording*.mp4
