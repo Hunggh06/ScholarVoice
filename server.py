@@ -3,10 +3,7 @@ import socketserver
 import json
 import urllib.request
 import urllib.error
-import asyncio
-import os
-import hashlib
-import edge_tts
+
 
 class MyHandler(http.server.SimpleHTTPRequestHandler):
     extensions_map = {
@@ -29,11 +26,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
     }
 
     def do_POST(self):
-        # Proxy cho NVIDIA API
         if self.path == '/api/nvidia':
             self._proxy_nvidia()
-        elif self.path == '/api/tts':
-            self._handle_tts()
         elif self.path == '/api/openrouter':
             self._proxy_openrouter()
         elif self.path == '/api/cloudflare':
@@ -89,68 +83,6 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'error': {'message': str(e)}}).encode('utf-8'))
-
-    def _handle_tts(self):
-        """Sinh MP3 giọng đọc tiếng Việt bằng Edge TTS, có cache + retry + atomic write"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-
-            text = data.get('text', '').strip()
-            voice = data.get('voice', 'vi-VN-NamMinhNeural')
-
-            if not text:
-                self._send_json({'error': 'Thiếu text'}, 400)
-                return
-
-            cache_key = hashlib.md5((text + voice).encode()).hexdigest()
-            cache_dir = os.path.join(os.path.dirname(__file__), 'tts_cache')
-            os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(cache_dir, cache_key + '.mp3')
-            tmp_path = cache_path + '.tmp'
-
-            # Nếu file cache tồn tại và kích thước >= 1KB → dùng luôn
-            if os.path.exists(cache_path) and os.path.getsize(cache_path) >= 1024:
-                pass  # dùng cache
-            else:
-                # Ghi vào temp trước, rename atomic sau
-                async def gen():
-                    for attempt in range(3):
-                        try:
-                            comm = edge_tts.Communicate(text, voice)
-                            await comm.save(tmp_path)
-                            # Validate file
-                            if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) < 1024:
-                                raise ValueError(f'MP3 quá nhỏ ({os.path.getsize(tmp_path)} bytes)')
-                            os.replace(tmp_path, cache_path)
-                            return
-                        except Exception:
-                            # Dọn temp nếu lỗi
-                            try:
-                                if os.path.exists(tmp_path):
-                                    os.unlink(tmp_path)
-                            except Exception:
-                                pass
-                            if attempt < 2:
-                                await asyncio.sleep(1)
-                            else:
-                                raise
-                asyncio.run(gen())
-
-            with open(cache_path, 'rb') as f:
-                mp3_data = f.read()
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'audio/mpeg')
-            self.send_header('Content-Length', len(mp3_data))
-            self.send_header('Cache-Control', 'public, max-age=86400')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(mp3_data)
-
-        except Exception as e:
-            self._send_json({'error': str(e)}, 500)
 
     def _send_json(self, data, status=200):
         body = json.dumps(data).encode('utf-8')

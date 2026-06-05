@@ -25,12 +25,10 @@ ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI gi�
 
 ### Yêu cầu
 - Python 3.9+
-- `edge-tts` (cho giọng đọc)
 
 ### Chạy local
 
 ```bash
-pip install edge-tts
 python server.py
 ```
 
