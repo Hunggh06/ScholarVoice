@@ -12,6 +12,7 @@ ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI gi�
 - 🎙️ **Text-to-Speech tiếng Việt** — Giọng Nam/Nữ, điều chỉnh tốc độ
 - 🔄 **Tự động đọc** — Tự động chuyển trang và đọc liên tục
 - 💾 **Lưu âm thanh** — Export/Import cache giọng đọc
+- 🎭 **Tuỳ chỉnh tính cách giảng viên** — Nhập hướng dẫn riêng: "nói chậm như thầy giáo già", "thêm ví dụ hài hước", "dùng giọng miền Nam"...
 
 ## Hỗ trợ AI
 
@@ -33,10 +34,6 @@ python server.py
 ```
 
 Mở trình duyệt tại `http://localhost:8080`
-
-### Deploy với Cloudflare Worker
-
-File `cloudflare-worker.js` có thể deploy lên Cloudflare Workers để chạy serverless.
 
 ## Cách dùng
 
