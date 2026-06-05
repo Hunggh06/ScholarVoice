@@ -173,55 +173,58 @@ export class AIEngine {
     const contextText = this._buildContext(pageNum);
 
     const styleGuides = {
-      brief: 'PHONG CÁCH LƯỚT: Cực ngắn gọn. Chỉ nêu 2-3 ý chính nhất của trang. Không giải thích sâu. Tối đa 3-4 câu.',
-      medium: 'PHONG CÁCH TRUNG BÌNH: Giảng đầy đủ nội dung trang, giải thích ngắn gọn những phần quan trọng. Tối đa 8-10 câu.',
-      detailed: 'PHONG CÁCH CHI TIẾT: Giảng thật kỹ từng phần. Giải thích cặn kẽ mọi công thức, định nghĩa, khái niệm. Đưa ví dụ minh họa nếu có thể. Đi sâu vào chi tiết kỹ thuật.'
+      brief: 'STYLE BRIEF: Extremely concise. Only mention 2-3 key points of the page. No deep explanation. Maximum 3-4 sentences.',
+      medium: 'STYLE MEDIUM: Cover the full page content with brief explanations of important parts. Maximum 8-10 sentences.',
+      detailed: 'STYLE DETAILED: Explain every part thoroughly. Elaborate on all formulas, definitions, concepts. Provide illustrative examples. Go deep into technical details.'
     };
     const styleGuide = styleGuides[this.teachingStyle] || styleGuides.medium;
-    const customGuide = this.customStyle ? `\nPHONG CÁCH RIÊNG: ${this.customStyle}` : '';
+    const customGuide = this.customStyle ? `\nCUSTOM STYLE: ${this.customStyle}` : '';
 
-    const systemPrompt = `Bạn là MỘT giảng viên duy nhất đang giảng liên tục xuyên suốt cả tài liệu. Đây là trang ${pageNum}.
+    const systemPrompt = `You are a SINGLE lecturer giving a continuous lecture across the entire document. This is page ${pageNum}.
 
 ${contextText}${styleGuide}${customGuide}
 
-QUAN TRỌNG - TÍNH LIÊN TỤC:
-- Bạn đã giảng các trang trước, hãy tiếp tục tự nhiên như cùng một buổi học.
-- Mở đầu ngắn gọn kiểu "Tiếp theo chúng ta đến..." hoặc "Ở trang này..." hoặc vào thẳng nội dung.
-- Không giới thiệu lại bản thân hay chào hỏi lại từ đầu.
+IMPORTANT - CONTINUITY:
+- You have already lectured on previous pages, continue naturally as part of the same lesson.
+- Start concisely like "Next we come to..." or "On this page..." or go straight into the content.
+- Do not reintroduce yourself or greet again.
 
-QUY TẮC:
-- MỘT đoạn văn duy nhất liên tục không xuống dòng không gạch đầu dòng không dùng markdown không dùng dấu sao.
-- Việt hóa công thức: P=UI là "p bằng u nhân i", x² là "x bình phương", √x là "căn x", P' viết là "p phẩy", f'(x) viết là "ép phẩy x".
-- Chữ Hy Lạp: α "an pha", β "bê ta", ε "ép si lôn", ω "ô mê ga".
-- Viết tắt đọc từng chữ: KT là "k t".
-- Không dùng ký hiệu = + - × $ ^ _ { }, thay bằng lời Việt.`;
+LANGUAGE RULE:
+- Respond in the EXACT SAME LANGUAGE as the document content. If the document is in Vietnamese, lecture in Vietnamese. If it is in English, lecture in English. Match the language of the content automatically.
+
+RULES:
+- SINGLE continuous paragraph, no line breaks, no bullet points, no markdown, no asterisks.
+- Verbalize formulas and equations in words in the same language as the content (e.g., in English: "P equals U times I", "x squared", "square root of x", "P prime", "f prime of x"; in Vietnamese: "p bằng u nhân i", "x bình phương", "căn x", "p phẩy", "ép phẩy x").
+- Greek letters: pronounce them naturally in the content's language (e.g., α → "alpha", β → "beta", ε → "epsilon", ω → "omega").
+- Abbreviations: spell out letter by letter in the content's language.
+- Do not use symbols like = + - × $ ^ _ { }, replace them with words in the document's language.`;
 
     let userPrompt;
     let expectJson = false;
     if (hasImage && hasVision) {
       expectJson = true;
-      userPrompt = `Giảng bài toàn bộ nội dung trang tài liệu trong hình đính kèm.
+      userPrompt = `Lecture on the full content of the document page in the attached image.
 
-QUAN TRỌNG: Trả về kết quả dưới dạng JSON với cấu trúc:
+IMPORTANT: Return the result as JSON with this structure:
 {
   "segments": [
     {
-      "explanation_text": "nội dung giảng giải cho vùng này, viết liên tục MỘT đoạn, tuân thủ các quy tắc giảng bên dưới",
+      "explanation_text": "lecture content for this region, written as a SINGLE continuous paragraph, following all lecture rules from the system prompt",
       "region_vert": [0, 0.35]
     },
     {
-      "explanation_text": "nội dung giảng giải cho vùng kế tiếp",
+      "explanation_text": "lecture content for the next region",
       "region_vert": [0.35, 0.65]
     }
   ]
 }
-region_vert là [top, bottom] tính bằng % chiều cao trang (giá trị 0-1).
-Chia trang thành các vùng theo chiều dọc tương ứng với từng phần nội dung.
-KHÔNG thêm bất kỳ text nào ngoài JSON.`;
+region_vert is [top, bottom] as percentage of page height (values 0-1).
+Split the page into vertical regions corresponding to each content section.
+Do NOT add any text outside the JSON.`;
     } else {
       userPrompt = pageText
-        ? `Giảng bài nội dung trang tài liệu dưới đây (chú ý các dòng ## là tiêu đề, dòng trống là ngăn cách đoạn):\n\n${pageText}`
-        : `Giảng bài nội dung trang tài liệu.`;
+        ? `Lecture on the document page content below (lines starting with ## are headings, blank lines separate sections):\n\n${pageText}`
+        : `Lecture on the document page content.`;
     }
 
     const effectiveImage = (hasImage && hasVision) ? imageBase64 : null;
@@ -255,23 +258,25 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
    * Trả lời câu hỏi trong chat
    */
   async askQuestion(question, imageBase64, pageText) {
-    const systemPrompt = `Bạn là giảng viên đang giải đáp thắc mắc của sinh viên. Hãy trả lời dựa trên nội dung trang tài liệu đang xem.
+    const systemPrompt = `You are a lecturer answering a student's question. Answer based on the document page content.
 
-Bạn PHẢI trả về JSON hợp lệ với đúng 2 trường sau:
+You MUST return valid JSON with exactly 2 fields:
 {
   "voice_text": "...",
   "display_text": "..."
-}`;
+}
 
-    const userPrompt = `Nội dung text trang hiện tại (tham khảo thêm): ${pageText}
+LANGUAGE RULE: Respond in the EXACT SAME LANGUAGE as the question and document content. If the student asks in Vietnamese, answer in Vietnamese. If in English, answer in English. Match the language automatically.`;
 
-Câu hỏi của sinh viên: ${question}
+    const userPrompt = `Current page text content (for reference): ${pageText}
 
-Trả lời theo JSON với 2 trường:
+Student's question: ${question}
 
-1. "voice_text": Giải thích chi tiết bằng MỘT đoạn văn DUY NHẤT liên tục, KHÔNG xuống dòng, KHÔNG gạch đầu dòng, KHÔNG đánh số. VIỆT HÓA HOÀN TOÀN mọi công thức (ví dụ: P = UI viết là "p bằng u nhân i", P' viết là "p phẩy"). KHÔNG dùng ký hiệu toán học hay LaTeX. Viết tắt đọc rõ từng chữ (KT là "k t"). Giọng văn tự nhiên như đang giảng bài.
+Answer in JSON with 2 fields:
 
-2. "display_text": Viết VẮN TẮT, ngắn gọn, dùng LaTeX cho công thức (ví dụ viết $P'$ hoặc $f'(x)$, TUYỆT ĐỐI KHÔNG viết chữ "phẩy", "bằng" mà phải dùng ký hiệu công thức LaTeX chuẩn). Chia ý rõ ràng. Chỉ hiển thị các điểm chính, KHÔNG cần giải thích dài dòng.`;
+1. "voice_text": Detailed explanation in a SINGLE continuous paragraph, NO line breaks, NO bullet points, NO numbering. Verbalize all formulas in words matching the content's language (e.g., in English: "P equals U times I", "P prime"; in Vietnamese: "p bằng u nhân i", "p phẩy"). Do NOT use math symbols or LaTeX. Spell out abbreviations letter by letter. Natural lecturer-like tone.
+
+2. "display_text": CONCISE summary. Use LaTeX for formulas (e.g., $P'$ or $f'(x)$, do NOT write out formula words). Clear structure. Only key points, NO lengthy explanation.`;
 
     const hasImage = imageBase64 && imageBase64.length > 100;
     const hasVision = this.hasVision();
