@@ -1,24 +1,24 @@
 # ScholarVoice 🎓
 
-**Biến PDF thành bài giảng có giọng đọc tiếng Việt bằng AI**
+**Turn PDFs into AI-powered Vietnamese lecture audio**
 
-ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI giảng bài bằng giọng tiếng Việt. Hỗ trợ chat thông minh về nội dung từng trang.
+ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on their content in Vietnamese speech. It also supports intelligent Q&A about each page's content.
 
-## Tính năng
+## Features
 
-- 📄 **Đọc PDF** — Xem PDF trực tiếp trên trình duyệt
-- 🎓 **Giảng bài bằng AI** — Chọn phong cách Lướt / Trung bình / Chi tiết
-- 💬 **Hỏi đáp thông minh** — Chat với AI về nội dung trang đang xem
-- 🎙️ **Text-to-Speech tiếng Việt** — Giọng Nam/Nữ, điều chỉnh tốc độ
-- 🔄 **Tự động đọc** — Tự động chuyển trang và đọc liên tục
-- 💾 **Lưu âm thanh** — Export/Import cache giọng đọc
-- 🎭 **Tuỳ chỉnh tính cách giảng viên** — Nhập hướng dẫn riêng: "nói chậm như thầy giáo già", "thêm ví dụ hài hước", "dùng giọng miền Nam"...
+- 📄 **PDF Viewer** — View PDFs directly in your browser
+- 🎓 **AI Lecture** — Choose from Brief / Medium / Detailed styles
+- 💬 **Smart Q&A** — Chat with AI about the content of the current page
+- 🎙️ **Vietnamese TTS** — Male/Female voices, adjustable speed
+- 🔄 **Auto-read** — Auto-advance pages with continuous playback
+- 💾 **Audio Cache** — Export/Import voice cache
+- 🎭 **Custom Teacher Personality** — Add custom instructions like "speak slowly like an old professor", "add funny examples", "use Southern accent"...
 
 ## 📺 Demo
 
-📥 [Tải video demo](scholarvoice-demo.mp4)
+📥 [Download demo video](scholarvoice-demo.mp4)
 
-## Hỗ trợ AI
+## AI Providers
 
 - ☁️ Gemini API
 - 🟢 NVIDIA API
@@ -26,29 +26,29 @@ ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI gi�
 - ☁️ Cloudflare Workers AI
 - 🖥️ Ollama (local)
 
-## Cài đặt & Chạy
+## Installation & Usage
 
-### Yêu cầu
+### Requirements
 - Python 3.9+
 
-### Chạy local
+### Run locally
 
 ```bash
 python server.py
 ```
 
-Mở trình duyệt tại `http://localhost:8080`
+Open your browser at `http://localhost:8080`
 
-## Cách dùng
+## How to use
 
-1. ⚙️ Vào **Cài đặt**, chọn nguồn AI và nhập API key
-2. 📄 Kéo thả file PDF vào khung
-3. 🎓 Nhấn **"Đọc"** để AI giảng nội dung trang
-4. 💬 Chat với AI để hỏi về công thức, định nghĩa, ví dụ
+1. ⚙️ Go to **Settings**, pick an AI provider and enter your API key
+2. 📄 Drag & drop a PDF file into the upload area
+3. 🎓 Click **"Teach"** to have AI lecture on the current page
+4. 💬 Chat with AI to ask about formulas, definitions, examples
 
-## ⚠️ Lưu ý
+## ⚠️ Disclaimer
 
-Nội dung do AI tạo ra, **không cam kết chính xác 100%**. Luôn kiểm chứng với tài liệu gốc.
+AI-generated content may contain inaccuracies. **Always verify** information against the original source before using it for study or research purposes.
 
 ---
 
