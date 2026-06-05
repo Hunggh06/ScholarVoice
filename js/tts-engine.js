@@ -43,6 +43,10 @@ export class TTSEngine {
     }, 200);
   }
 
+  getAllVoices() {
+    return this.synth.getVoices();
+  }
+
   getVietnameseVoices() {
     return this.synth.getVoices().filter(v =>
       v.lang.startsWith('vi') || v.lang.startsWith('vi-VN')
@@ -64,10 +68,11 @@ export class TTSEngine {
   }
 
   get voice() {
-    const viVoices = this.getVietnameseVoices();
-    const found = viVoices.find(v => v.name === this._voiceName) || viVoices[0];
-    if (found) return found;
     const all = this.synth.getVoices();
+    if (this._voiceName) {
+      const found = all.find(v => v.name === this._voiceName);
+      if (found) return found;
+    }
     return all[0] || null;
   }
 
@@ -106,8 +111,9 @@ export class TTSEngine {
 
   _createUtterance(text, rate) {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = this.voice;
-    utterance.lang = 'vi-VN';
+    const v = this.voice;
+    utterance.voice = v;
+    utterance.lang = v ? v.lang : 'vi-VN';
     utterance.rate = rate;
     utterance.volume = 1;
 

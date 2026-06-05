@@ -247,36 +247,50 @@ class App {
   // ============================================================
 
   _setupVoiceSelect() {
-    const btn = document.getElementById('voice-toggle');
-    if (!btn) return;
+    const sel = document.getElementById('voice-select');
+    if (!sel) return;
 
-    const updateLabel = () => {
-      const v = this.ttsEngine.voice;
-      if (!v || !v.name) {
-        btn.textContent = '🔇 Chưa có';
-        btn.title = 'Chưa cài giọng tiếng Việt';
-        return;
+    const populate = () => {
+      const voices = this.ttsEngine.getAllVoices();
+      const current = sel.value;
+      sel.innerHTML = '';
+
+      const groups = {};
+      for (const v of voices) {
+        const lang = v.lang || 'unknown';
+        if (!groups[lang]) groups[lang] = [];
+        groups[lang].push(v);
       }
-      const short = v.name.length > 15 ? v.name.substring(0, 14) + '…' : v.name;
-      btn.textContent = `🔊 ${short}`;
-      btn.title = v.name;
+
+      const sortedLangs = Object.keys(groups).sort();
+      for (const lang of sortedLangs) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = lang;
+        const items = groups[lang];
+        for (const v of items) {
+          const opt = document.createElement('option');
+          opt.value = v.name;
+          opt.textContent = v.name.replace(/(Microsoft|Online|Natural|Windows|Mozilla|Google|Apple)\s*/g, '').trim() || v.name;
+          if (v.name === this.ttsEngine._voiceName) opt.selected = true;
+          optgroup.appendChild(opt);
+        }
+        sel.appendChild(optgroup);
+      }
+
+      if (!sel.value && voices.length > 0) {
+        sel.value = voices[0].name;
+        this.ttsEngine.setVoiceByName(voices[0].name);
+      }
     };
 
-    btn.addEventListener('click', () => {
-      const voices = this.ttsEngine.getVietnameseVoices();
-      if (voices.length === 0) {
-        this._showToast('Chưa cài giọng tiếng Việt. Vào Settings > Language > Add Vietnamese.', 'error');
-        return;
-      }
-      const currentIdx = voices.findIndex(v => v.name === this.ttsEngine._voiceName);
-      const nextIdx = (currentIdx + 1) % voices.length;
-      this.ttsEngine.setVoiceByName(voices[nextIdx].name);
-      updateLabel();
+    sel.addEventListener('change', () => {
+      this.ttsEngine.setVoiceByName(sel.value);
     });
 
-    // Đợi voices load (có thể async)
-    this.ttsEngine.synth.addEventListener('voiceschanged', () => updateLabel());
-    updateLabel();
+    this.ttsEngine.synth.addEventListener('voiceschanged', () => populate());
+    // Retry populate if voices load async
+    setTimeout(() => { if (sel.options.length === 0) populate(); }, 500);
+    populate();
   }
 
   // ============================================================
