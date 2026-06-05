@@ -16,7 +16,7 @@ ScholarVoice là công cụ web giúp bạn tải file PDF lên và nghe AI gi�
 
 ## 📺 Demo
 
-<video src="scholarvoice-demo.mp4" controls style="max-width:100%;border-radius:8px;"></video>
+<video src="https://raw.githubusercontent.com/Hunggh06/ScholarVoice/main/scholarvoice-demo.mp4" controls style="max-width:100%;border-radius:8px;"></video>
 
 ## Hỗ trợ AI
 
