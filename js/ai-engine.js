@@ -1,5 +1,5 @@
 /**
- * AIEngine - Module gọi AI (hỗ trợ Gemini, NVIDIA, Cloudflare, Ollama, OpenRouter)
+ * AIEngine - Module gọi AI (hỗ trợ Gemini, NVIDIA, Ollama, OpenRouter)
  * Xử lý 2 chức năng: dạy học (voice only) và chat (voice + display)
  * Tự thích ứng prompt theo khả năng vision của model
  */
@@ -24,14 +24,6 @@ export class AIEngine {
     this.nvidiaModel = saved.nvidiaModel || 'deepseek-ai/deepseek-v4-flash';
     this.nvidiaVision = saved.nvidiaVision !== undefined ? saved.nvidiaVision : false;
     this.nvidiaBaseUrl = 'https://integrate.api.nvidia.com/v1';
-
-    // Cloudflare settings
-    this.cfAccountId = saved.cfAccountId || '';
-    this.cfApiToken = saved.cfApiToken || '';
-    this.cfModel = saved.cfModel || '@cf/meta/llama-3.2-3b-instruct';
-    if (this.cfModel === '@cf/meta/llama-3-8b-instruct' || this.cfModel === '@cf/meta/llama-3.1-8b-instruct') {
-      this.cfModel = '@cf/meta/llama-3.2-3b-instruct';
-    }
 
     // OpenRouter settings
     this.openrouterKey = saved.openrouterKey || '';
@@ -61,9 +53,6 @@ export class AIEngine {
     if (settings.nvidiaKey !== undefined) this.nvidiaKey = settings.nvidiaKey.trim();
     if (settings.nvidiaModel !== undefined) this.nvidiaModel = settings.nvidiaModel.trim();
     if (settings.nvidiaVision !== undefined) this.nvidiaVision = settings.nvidiaVision;
-    if (settings.cfAccountId !== undefined) this.cfAccountId = settings.cfAccountId.trim();
-    if (settings.cfApiToken !== undefined) this.cfApiToken = settings.cfApiToken.trim();
-    if (settings.cfModel !== undefined) this.cfModel = settings.cfModel.trim();
     if (settings.openrouterKey !== undefined) this.openrouterKey = settings.openrouterKey.trim();
     if (settings.openrouterModel !== undefined) this.openrouterModel = settings.openrouterModel.trim();
     if (settings.openrouterVision !== undefined) this.openrouterVision = settings.openrouterVision;
@@ -80,9 +69,6 @@ export class AIEngine {
       nvidiaKey: this.nvidiaKey,
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
-      cfAccountId: this.cfAccountId,
-      cfApiToken: this.cfApiToken,
-      cfModel: this.cfModel,
       openrouterKey: this.openrouterKey,
       openrouterModel: this.openrouterModel,
       openrouterVision: this.openrouterVision,
@@ -108,9 +94,6 @@ export class AIEngine {
       nvidiaKey: this.nvidiaKey,
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
-      cfAccountId: this.cfAccountId,
-      cfApiToken: this.cfApiToken,
-      cfModel: this.cfModel,
       openrouterKey: this.openrouterKey,
       openrouterModel: this.openrouterModel,
       openrouterVision: this.openrouterVision,
@@ -125,9 +108,6 @@ export class AIEngine {
     if (this.provider === 'nvidia') return this.nvidiaVision === true;
     if (this.provider === 'openrouter') return this.openrouterVision === true;
     if (this.provider === 'ollama') return this.ollamaVision === true;
-    if (this.provider === 'cloudflare') {
-      return this.cfModel.includes('vision') || this.cfModel.includes('llava');
-    }
     return false;
   }
 
@@ -135,7 +115,6 @@ export class AIEngine {
     if (this.provider === 'gemini') return this.apiKey.length > 0;
     if (this.provider === 'nvidia') return this.nvidiaKey.length > 0;
     if (this.provider === 'openrouter') return this.openrouterKey.length > 0;
-    if (this.provider === 'cloudflare') return this.cfAccountId.length > 0 && this.cfApiToken.length > 0;
     return this.ollamaUrl.length > 0 && this.ollamaModel.length > 0;
   }
 
@@ -324,9 +303,6 @@ Answer in JSON with 2 fields:
       } else if (this.provider === 'nvidia') {
         result = await this._callNvidiaAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
       } else if (this.provider === 'openrouter') {
-        result = await this._callOpenRouterAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
-      } else if (this.provider === 'cloudflare') {
-        result = await this._callCloudflareAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
       } else {
         result = await this._callGeminiAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
       }
@@ -355,7 +331,6 @@ Answer in JSON with 2 fields:
     if (this.provider === 'nvidia') return this.nvidiaModel;
     if (this.provider === 'openrouter') return this.openrouterModel;
     if (this.provider === 'ollama') return this.ollamaModel;
-    if (this.provider === 'cloudflare') return this.cfModel;
     return 'unknown';
   }
 
@@ -425,68 +400,6 @@ Answer in JSON with 2 fields:
   clearCache() {
     this.pageCache.clear();
     this.docContext = [];
-  }
-
-  // ============================================================
-  //  CLOUDFLARE WORKERS AI
-  // ============================================================
-
-  async _callCloudflareAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText) {
-    if (!this.cfAccountId || !this.cfApiToken) {
-      throw new Error('Chưa nhập Cloudflare Account ID hoặc API Token.');
-    }
-
-    const abortController = new AbortController();
-    this._abortController = abortController;
-
-    let userContent = prompt;
-    if (pageText) {
-      userContent = `${prompt}\n\nNội dung trang:\n${pageText}`;
-    }
-
-    const body = {
-      _account_id: this.cfAccountId,
-      _api_token: this.cfApiToken,
-      _model: this.cfModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent }
-      ],
-    };
-
-    try {
-      const response = await fetch('/api/cloudflare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: abortController.signal
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData?.error?.message || errData?.errors?.[0]?.message || `Lỗi Cloudflare (${response.status})`);
-      }
-
-      const data = await response.json();
-
-      if (typeof data.result === 'string') return data.result;
-      if (data.result?.response) return data.result.response;
-      if (data.result?.text) return data.result.text;
-      if (data.response) return data.response;
-      if (data.choices?.length) return data.choices[0].message.content;
-      throw new Error(`Cloudflare AI không trả về kết quả hợp lệ.`);
-
-    } catch (err) {
-      if (err.name === 'AbortError') throw new Error('Đã hủy yêu cầu.');
-      if (err.message.includes('Failed to fetch')) {
-        throw new Error('Không kết nối được server proxy local. Hãy đảm bảo server.py đang chạy.');
-      }
-      throw err;
-    } finally {
-      if (this._abortController === abortController) {
-        this._abortController = null;
-      }
-    }
   }
 
   // ============================================================

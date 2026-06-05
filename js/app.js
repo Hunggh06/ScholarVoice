@@ -336,7 +336,6 @@ class App {
     document.getElementById('gemini-settings').classList.toggle('hidden', provider !== 'gemini');
     document.getElementById('nvidia-settings').classList.toggle('hidden', provider !== 'nvidia');
     document.getElementById('openrouter-settings').classList.toggle('hidden', provider !== 'openrouter');
-    document.getElementById('cloudflare-settings').classList.toggle('hidden', provider !== 'cloudflare');
     document.getElementById('ollama-settings').classList.toggle('hidden', provider !== 'ollama');
   }
 
@@ -400,7 +399,6 @@ class App {
         gemini: 'Gemini API',
         nvidia: `NVIDIA (${this.aiEngine.nvidiaModel})`,
         openrouter: `OpenRouter (${this.aiEngine.openrouterModel})`,
-        cloudflare: `Cloudflare (${this.aiEngine.cfModel})`,
         ollama: `Ollama (${this.aiEngine.ollamaModel})`
       };
       this._showToast(`Đã lưu: ${labels[provider]}`, 'success');

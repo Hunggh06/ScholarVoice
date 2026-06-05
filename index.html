@@ -35,7 +35,6 @@
         <option value="gemini">☁️ Gemini API (Online)</option>
         <option value="nvidia">🟢 NVIDIA API</option>
         <option value="openrouter">🔗 OpenRouter (Multi-model)</option>
-        <option value="cloudflare">☁️ Cloudflare Workers AI</option>
         <option value="ollama">🖥️ Ollama (Chạy local trên máy)</option>
       </select>
 
@@ -70,16 +69,6 @@
         <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">
           <input type="checkbox" id="openrouter-vision" checked> Model hỗ trợ đọc ảnh (Vision)
         </label>
-      </div>
-
-      <div id="cloudflare-settings" class="hidden">
-        <p class="modal-desc">Dùng <a href="https://developers.cloudflare.com/workers-ai/" target="_blank">Cloudflare Workers AI</a> REST API.</p>
-        <label class="modal-label">Account ID:</label>
-        <input type="text" id="cf-account-id" class="modal-input" placeholder="Nhập Cloudflare Account ID..." autocomplete="off">
-        <label class="modal-label">API Token:</label>
-        <input type="password" id="cf-api-token" class="modal-input" placeholder="Nhập Workers AI API Token..." autocomplete="off" spellcheck="false">
-        <label class="modal-label">Model:</label>
-        <input type="text" id="cf-model" class="modal-input" placeholder="@cf/meta/llama-3.2-3b-instruct" value="@cf/meta/llama-3.2-3b-instruct" autocomplete="off">
       </div>
 
       <div id="ollama-settings" class="hidden">
@@ -128,7 +117,7 @@
       <div class="hero-icon">🎓</div>
       <h1 class="hero-title">ScholarVoice</h1>
       <p class="hero-subtitle">Biến PDF thành bài giảng có giọng đọc bằng AI</p>
-      <p class="hero-models">Hỗ trợ Gemini &bull; OpenRouter &bull; NVIDIA &bull; Cloudflare &bull; Ollama</p>
+      <p class="hero-models">Hỗ trợ Gemini &bull; OpenRouter &bull; NVIDIA &bull; Ollama</p>
       <button id="start-btn" class="hero-btn">
         <span>🚀 BẮT ĐẦU NGAY</span>
       </button>
