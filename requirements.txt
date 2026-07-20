@@ -1,0 +1,5 @@
+# ScholarVoice - no third-party dependencies required.
+# The app uses only Python standard library (http.server, socketserver, urllib).
+# Pinning Python version for Render.
+
+python-dotenv==1.0.1

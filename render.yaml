@@ -1,0 +1,17 @@
+# Render deployment config for ScholarVoice
+# Free Web Service tier.
+# Docs: https://render.com/docs/deploy-python
+
+services:
+  - type: web
+    name: scholarvoice
+    runtime: python
+    plan: free
+    # Render injects $PORT; server.py reads it from the environment.
+    # Build: no install step needed beyond pip install -r requirements.txt (empty deps).
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python server.py"
+    healthCheckPath: "/"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.10"
