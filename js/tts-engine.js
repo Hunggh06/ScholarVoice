@@ -42,6 +42,10 @@ export class TTSEngine {
     this._rate = parseFloat(localStorage.getItem('tts_rate') || '1.0');
     this._voiceId = localStorage.getItem('tts_voice') || 'vi-VN-HoaiMyNeural';
 
+    // Giu tuong thich app.js cu: synth (de addEventListener) va _voiceName (alias _voiceId)
+    this.synth = { addEventListener() {} };
+    this._voiceName = this._voiceId;
+
     this.onStart = null;
     this.onEnd = null;
     this.onPause = null;
