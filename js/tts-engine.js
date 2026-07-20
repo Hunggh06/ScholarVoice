@@ -1,24 +1,48 @@
 /**
- * TTSEngine - Dùng Web Speech API của trình duyệt.
- * Giong phu thuoc vao giong da cai dat tren he dieu hanh cua user
- * (tren Windows/macOS/iOS thuong co san giong tieng Viet tu nhien).
- * Khong can server, chay ngay tren browser.
+ * TTSEngine - Sinh giong tu nhien qua Google Cloud Text-to-Speech (server proxy /api/tts).
+ * Key nam tren server (env GOOGLE_TTS_KEY), khong lo len trinh duyet.
+ * Giu nguyen interface cu de app.js khong can sua.
  */
+
+// name = dinh danh luu vao localStorage (tuong thich app.js); id = ma giong goi server
+const GOOGLE_VOICES = [
+  { name: 'Việt Nam - Wavenet A (Nữ)', id: 'vi-VN-Wavenet-A', lang: 'vi-VN' },
+  { name: 'Việt Nam - Wavenet B (Nam)', id: 'vi-VN-Wavenet-B', lang: 'vi-VN' },
+  { name: 'Việt Nam - Neural2 A (Nữ)', id: 'vi-VN-Neural2-A', lang: 'vi-VN' },
+  { name: 'Việt Nam - Neural2 B (Nam)', id: 'vi-VN-Neural2-B', lang: 'vi-VN' },
+  { name: 'US - Wavenet C (Nữ)', id: 'en-US-Wavenet-C', lang: 'en-US' },
+  { name: 'US - Neural2 F (Nữ)', id: 'en-US-Neural2-F', lang: 'en-US' },
+  { name: 'Japan - Wavenet A (Nữ)', id: 'ja-JP-Wavenet-A', lang: 'ja-JP' },
+  { name: 'Korea - Wavenet B (Nữ)', id: 'ko-KR-Wavenet-B', lang: 'ko-KR' },
+  { name: 'France - Wavenet B (Nữ)', id: 'fr-FR-Wavenet-B', lang: 'fr-FR' },
+  { name: 'Germany - Wavenet B (Nữ)', id: 'de-DE-Wavenet-B', lang: 'de-DE' },
+];
+
+function _resolveVoiceId(nameOrId) {
+  if (!nameOrId) return 'vi-VN-Wavenet-A';
+  const byName = GOOGLE_VOICES.find(v => v.name === nameOrId);
+  if (byName) return byName.id;
+  const byId = GOOGLE_VOICES.find(v => v.id === nameOrId);
+  if (byId) return byId.id;
+  return 'vi-VN-Wavenet-A';
+}
 
 export class TTSEngine {
   constructor() {
-    this.synth = window.speechSynthesis;
+    this._audio = new Audio();
     this._isSpeaking = false;
     this._isPaused = false;
     this._stopRequested = false;
     this._currentText = '';
     this._fullText = '';
     this._progressPct = 0;
-    this._resumeTimer = null;
-    this._seekOffset = 0;
-    this._lastCharIndex = 0;
-    this._voiceName = localStorage.getItem('tts_voice') || '';
+    this._pendingSeek = null;
     this._rate = parseFloat(localStorage.getItem('tts_rate') || '1.0');
+    this._voiceId = localStorage.getItem('tts_voice') || 'vi-VN-Wavenet-A';
+
+    // Tuong thich app.js cu
+    this.synth = { addEventListener() {} };
+    this._voiceName = this._voiceId;
 
     this.onStart = null;
     this.onEnd = null;
@@ -27,33 +51,41 @@ export class TTSEngine {
     this.onError = null;
     this.onProgress = null;
 
-    setInterval(() => {
-      if (this.synth.speaking && !this.synth.paused) {
-        if (!this._isSpeaking && !this._stopRequested) {
-          this._isSpeaking = true;
-          this._isPaused = false;
-        }
-      } else if (this.synth.paused) {
-        if (!this._isPaused) {
-          this._isPaused = true;
-          if (this.onPause) this.onPause();
-        }
-      } else if (!this.synth.speaking && this._isSpeaking && !this._stopRequested) {
-        this._isSpeaking = false;
-        this._isPaused = false;
-        if (this.onEnd) this.onEnd();
+    this._audio.addEventListener('loadedmetadata', () => {
+      if (this._pendingSeek != null) {
+        const pct = this._pendingSeek;
+        this._pendingSeek = null;
+        this.seekTo(pct);
       }
-    }, 200);
+    });
+    this._audio.addEventListener('timeupdate', () => {
+      if (this._audio.duration > 0) {
+        const pct = this._audio.currentTime / this._audio.duration;
+        this._progressPct = pct;
+        if (this.onProgress) this.onProgress(pct);
+      }
+    });
+    this._audio.addEventListener('ended', () => {
+      if (this._stopRequested) return;
+      this._isSpeaking = false;
+      this._isPaused = false;
+      this._progressPct = 1;
+      if (this.onProgress) this.onProgress(1);
+      if (this.onEnd) this.onEnd();
+    });
+    this._audio.addEventListener('error', () => {
+      if (this._stopRequested) return;
+      this._isSpeaking = false;
+      if (this.onError) this.onError(new Error('Lỗi phát âm thanh từ server TTS.'));
+    });
   }
 
   getAllVoices() {
-    return this.synth.getVoices();
+    return GOOGLE_VOICES;
   }
 
   getVietnameseVoices() {
-    return this.synth.getVoices().filter(v =>
-      v.lang.startsWith('vi') || v.lang.startsWith('vi-VN')
-    );
+    return GOOGLE_VOICES.filter(v => v.lang.startsWith('vi'));
   }
 
   get hasVietnameseVoice() {
@@ -61,29 +93,22 @@ export class TTSEngine {
   }
 
   get isFallbackVoice() {
-    return !this.hasVietnameseVoice;
+    return false;
   }
 
   setVoiceByName(name) {
+    this._voiceId = name;
     this._voiceName = name;
     localStorage.setItem('tts_voice', name);
     return true;
   }
 
   get voice() {
-    const all = this.synth.getVoices();
-    if (all.length === 0) return null;
-    if (this._voiceName) {
-      const found = all.find(v => v.name === this._voiceName);
-      if (found) return found;
-    }
-    const viVoices = this.getVietnameseVoices();
-    if (viVoices.length > 0) return viVoices[0];
-    return all[0] || null;
+    return GOOGLE_VOICES.find(v => v.name === this._voiceId) || GOOGLE_VOICES[0];
   }
 
   get totalChunks() {
-    return Math.ceil((this._currentText || '').length / 200) || 1;
+    return 1;
   }
 
   get progress() {
@@ -91,73 +116,45 @@ export class TTSEngine {
   }
 
   async speak(text) {
-    clearTimeout(this._resumeTimer);
-    this._resumeTimer = null;
     this.stop();
     this._stopRequested = false;
     if (!text || !text.trim()) return;
 
-    const voice = this.voice;
-    if (!voice) {
-      if (this.onError) this.onError(new Error('Chưa tải được giọng đọc. F5 lại trang hoặc cài giọng tiếng Việt trong Settings hệ thống.'));
-      return;
-    }
-
     this._currentText = text;
     this._fullText = text;
-    this._seekOffset = 0;
-    this._lastCharIndex = 0;
     this._progressPct = 0;
-    this._isSpeaking = true;
-    this._isPaused = false;
+
     if (this.onStart) this.onStart();
 
-    this._createUtterance(text, this._rate);
-  }
-
-  _createUtterance(text, rate) {
-    const v = this.voice;
-    if (!v) {
-      if (this.onError) this.onError(new Error('Không có giọng đọc tiếng Việt.'));
-      return;
-    }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = v;
-    utterance.lang = v.lang || 'vi-VN';
-    utterance.rate = rate;
-    utterance.volume = 1;
-
-    utterance.onend = () => {
-      this._isSpeaking = false;
+    try {
+      const resp = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text,
+          voice: _resolveVoiceId(this._voiceId),
+          rate: this._rate,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error?.message || ('TTS lỗi HTTP ' + resp.status));
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      this._audio.src = url;
+      this._isSpeaking = true;
       this._isPaused = false;
-      this._progressPct = 1;
-      if (this.onProgress) this.onProgress(1);
-      if (this.onEnd) this.onEnd();
-    };
-
-    utterance.onboundary = (e) => {
-      this._lastCharIndex = e.charIndex;
-      const absIdx = this._seekOffset + e.charIndex;
-      const pct = this._fullText.length > 0
-        ? Math.min(absIdx / this._fullText.length, 0.99)
-        : 0;
-      this._progressPct = pct;
-      if (this.onProgress) this.onProgress(pct);
-    };
-
-    utterance.onerror = (e) => {
-      if (e.error === 'canceled' || e.error === 'interrupted') return;
-      console.warn('Speech error:', e.error);
+      await this._audio.play();
+    } catch (e) {
       this._isSpeaking = false;
-      if (this.onError) this.onError(new Error('Lỗi giọng đọc: ' + e.error));
-    };
-
-    this.synth.speak(utterance);
+      if (this.onError) this.onError(e);
+    }
   }
 
   pause() {
     if (this._isSpeaking && !this._isPaused) {
-      this.synth.pause();
+      this._audio.pause();
       this._isPaused = true;
       if (this.onPause) this.onPause();
     }
@@ -165,71 +162,38 @@ export class TTSEngine {
 
   resume() {
     if (this._isPaused) {
-      this.synth.resume();
+      this._audio.play();
       this._isPaused = false;
       if (this.onResume) this.onResume();
-
-      const savedText = this._fullText;
-      const savedOffset = this._seekOffset + this._lastCharIndex;
-      clearTimeout(this._resumeTimer);
-      this._resumeTimer = setTimeout(() => {
-        this._resumeTimer = null;
-        if (savedText && this._fullText === savedText
-          && !this.synth.speaking && !this.synth.paused) {
-          this._seekFrom(savedOffset);
-        }
-      }, 350);
     }
-  }
-
-  _seekFrom(charIdx) {
-    if (!this._fullText) return;
-    const idx = Math.min(charIdx, this._fullText.length - 1);
-    if (idx <= 0) {
-      this.speak(this._fullText);
-      return;
-    }
-    this._seekOffset = idx;
-    this._lastCharIndex = 0;
-    const remaining = this._fullText.slice(idx);
-    this._isSpeaking = true;
-    this._isPaused = false;
-    this._stopRequested = true;
-    setTimeout(() => {
-      this._stopRequested = false;
-      this._createUtterance(remaining, this._rate);
-    }, 50);
   }
 
   stop() {
-    clearTimeout(this._resumeTimer);
-    this._resumeTimer = null;
     this._stopRequested = true;
-    this.synth.cancel();
+    this._audio.pause();
+    this._audio.currentTime = 0;
     this._isSpeaking = false;
     this._isPaused = false;
     this._progressPct = 0;
-    this._seekOffset = 0;
-    this._lastCharIndex = 0;
     if (this.onProgress) this.onProgress(0);
   }
 
   seekTo(pct) {
-    if (!this._isSpeaking && !this._isPaused) return;
-    if (!this._fullText) return;
-    const idx = Math.floor(pct / 100 * this._fullText.length);
-    this.synth.cancel();
-    this._seekFrom(idx);
+    if (!this._audio.duration) return;
+    const t = Math.max(0, Math.min(pct / 100, 1)) * this._audio.duration;
+    this._audio.currentTime = t;
+    this._progressPct = pct / 100;
+    if (this.onProgress) this.onProgress(this._progressPct);
   }
 
   applyRate(newRate) {
     if (this._rate === newRate) return;
     this._rate = newRate;
     localStorage.setItem('tts_rate', String(newRate));
-    if (this._isSpeaking && !this._isPaused && this._fullText) {
-      const curIdx = this._seekOffset + this._lastCharIndex;
-      this.synth.cancel();
-      this._seekFrom(curIdx);
+    if (this._isSpeaking || this._isPaused) {
+      const curPct = this._progressPct * 100;
+      this.speak(this._fullText);
+      this._pendingSeek = curPct;
     }
   }
 
@@ -241,8 +205,6 @@ export class TTSEngine {
   get isSpeaking() { return this._isSpeaking; }
   get isPaused() { return this._isPaused; }
 
-  set rate(value) {
-    this.applyRate(value);
-  }
+  set rate(value) { this.applyRate(value); }
   get rate() { return this._rate; }
 }
