@@ -1,5 +1,5 @@
 /**
- * AIEngine - Module gọi AI (hỗ trợ Gemini, NVIDIA, Ollama, OpenRouter)
+ * AIEngine - Module gọi AI (hỗ trợ Gemini, NVIDIA, Ollama)
  * Xử lý 2 chức năng: dạy học (voice only) và chat (voice + display)
  * Tự thích ứng prompt theo khả năng vision của model
  */
@@ -25,10 +25,8 @@ export class AIEngine {
     this.nvidiaVision = saved.nvidiaVision !== undefined ? saved.nvidiaVision : false;
     this.nvidiaBaseUrl = 'https://integrate.api.nvidia.com/v1';
 
-    // OpenRouter settings
-    this.openrouterKey = saved.openrouterKey || '';
-    this.openrouterModel = saved.openrouterModel || 'google/gemini-2.0-flash-001';
-    this.openrouterVision = saved.openrouterVision !== undefined ? saved.openrouterVision : true;
+    this.deepseekModel = saved.deepseekModel || 'deepseek-chat';
+    this.deepseekUrl = saved.deepseekUrl || 'http://localhost:18000';
 
     this._abortController = null;
     this.pageCache = new Map();
@@ -37,6 +35,9 @@ export class AIEngine {
 
     // Bộ nhớ ngữ cảnh toàn bài: mỗi trang đã giảng lưu tóm tắt
     this.docContext = [];
+    this.chatHistory = [];
+    this._pdfName = '';
+    this._deepseekConvId = null;
 
     this.onDebug = null;
   }
@@ -53,9 +54,8 @@ export class AIEngine {
     if (settings.nvidiaKey !== undefined) this.nvidiaKey = settings.nvidiaKey.trim();
     if (settings.nvidiaModel !== undefined) this.nvidiaModel = settings.nvidiaModel.trim();
     if (settings.nvidiaVision !== undefined) this.nvidiaVision = settings.nvidiaVision;
-    if (settings.openrouterKey !== undefined) this.openrouterKey = settings.openrouterKey.trim();
-    if (settings.openrouterModel !== undefined) this.openrouterModel = settings.openrouterModel.trim();
-    if (settings.openrouterVision !== undefined) this.openrouterVision = settings.openrouterVision;
+    if (settings.deepseekModel !== undefined) this.deepseekModel = settings.deepseekModel;
+    if (settings.deepseekUrl !== undefined) this.deepseekUrl = settings.deepseekUrl;
     if (settings.teachingStyle !== undefined) this.teachingStyle = settings.teachingStyle;
     if (settings.customStyle !== undefined) this.customStyle = settings.customStyle;
 
@@ -69,9 +69,8 @@ export class AIEngine {
       nvidiaKey: this.nvidiaKey,
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
-      openrouterKey: this.openrouterKey,
-      openrouterModel: this.openrouterModel,
-      openrouterVision: this.openrouterVision,
+      deepseekModel: this.deepseekModel,
+      deepseekUrl: this.deepseekUrl,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
     }));
@@ -80,6 +79,7 @@ export class AIEngine {
     if (oldProvider !== this.provider) {
       this.pageCache.clear();
       this.docContext = [];
+      this.clearChatHistory();
     }
   }
 
@@ -94,19 +94,17 @@ export class AIEngine {
       nvidiaKey: this.nvidiaKey,
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
-      openrouterKey: this.openrouterKey,
-      openrouterModel: this.openrouterModel,
-      openrouterVision: this.openrouterVision,
+      deepseekModel: this.deepseekModel,
+      deepseekUrl: this.deepseekUrl,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
     };
   }
 
-  /** Kiểm tra model hiện tại có hỗ trợ đọc ảnh không */
   hasVision() {
     if (this.provider === 'gemini') return true;
     if (this.provider === 'nvidia') return this.nvidiaVision === true;
-    if (this.provider === 'openrouter') return this.openrouterVision === true;
+    if (this.provider === 'deepseek') return false;
     if (this.provider === 'ollama') return this.ollamaVision === true;
     return false;
   }
@@ -114,7 +112,7 @@ export class AIEngine {
   get isConfigured() {
     if (this.provider === 'gemini') return this.apiKey.length > 0;
     if (this.provider === 'nvidia') return this.nvidiaKey.length > 0;
-    if (this.provider === 'openrouter') return this.openrouterKey.length > 0;
+    if (this.provider === 'deepseek') return this.deepseekUrl.length > 0;
     return this.ollamaUrl.length > 0 && this.ollamaModel.length > 0;
   }
 
@@ -152,58 +150,66 @@ export class AIEngine {
     const contextText = this._buildContext(pageNum);
 
     const styleGuides = {
-      brief: 'STYLE BRIEF: Extremely concise. Only mention 2-3 key points of the page. No deep explanation. Maximum 3-4 sentences.',
-      medium: 'STYLE MEDIUM: Cover the full page content with brief explanations of important parts. Maximum 8-10 sentences.',
-      detailed: 'STYLE DETAILED: Explain every part thoroughly. Elaborate on all formulas, definitions, concepts. Provide illustrative examples. Go deep into technical details.'
+      brief: 'PHONG CÁCH LƯỚT: Cực kỳ ngắn gọn. Chỉ nêu 2-3 ý chính của trang. Không giải thích sâu. Tối đa 3-4 câu.',
+      medium: 'PHONG CÁCH TRUNG BÌNH: Giảng đầy đủ nội dung trang kèm giải thích ngắn các phần quan trọng. Tối đa 8-10 câu.',
+      detailed: 'PHONG CÁCH CHI TIẾT: Giảng kỹ từng phần. Giải thích cặn kẽ mọi công thức, định nghĩa, khái niệm. Cho ví dụ minh họa. Đào sâu chi tiết kỹ thuật.'
     };
     const styleGuide = styleGuides[this.teachingStyle] || styleGuides.medium;
-    const customGuide = this.customStyle ? `\nCUSTOM STYLE: ${this.customStyle}` : '';
+    const customGuide = this.customStyle ? `\nYÊU CẦU RIÊNG: ${this.customStyle}` : '';
 
-    const systemPrompt = `You are a SINGLE lecturer giving a continuous lecture across the entire document. This is page ${pageNum}.
+    const systemPrompt = `Bạn là giảng viên đang giảng liên tục toàn bộ tài liệu. Đây là trang ${pageNum}.
 
 ${contextText}${styleGuide}${customGuide}
 
-IMPORTANT - CONTINUITY:
-- You have already lectured on previous pages, continue naturally as part of the same lesson.
-- Start concisely like "Next we come to..." or "On this page..." or go straight into the content.
-- Do not reintroduce yourself or greet again.
+LIÊN KẾT BÀI GIẢNG:
+- Bạn đã giảng các trang trước, hãy tiếp tục tự nhiên như một phần của cùng bài học.
+- Mở đầu ngắn gọn kiểu "Tiếp theo chúng ta đến với..." hoặc "Trang này nói về..." hoặc đi thẳng vào nội dung.
+- Không giới thiệu lại bản thân, không chào hỏi lại.
+- Giọng điệu tự nhiên như giảng viên thật — ngắt nghỉ nhẹ giữa các ý, nhấn mạnh thuật ngữ quan trọng.
 
-LANGUAGE RULE:
-- Respond in the EXACT SAME LANGUAGE as the document content. If the document is in Vietnamese, lecture in Vietnamese. If it is in English, lecture in English. Match the language of the content automatically.
+NGÔN NGỮ: Luôn giảng bằng TIẾNG VIỆT.
 
-RULES:
-- SINGLE continuous paragraph, no line breaks, no bullet points, no markdown, no asterisks.
-- Verbalize formulas and equations in words in the same language as the content (e.g., in English: "P equals U times I", "x squared", "square root of x", "P prime", "f prime of x"; in Vietnamese: "p bằng u nhân i", "x bình phương", "căn x", "p phẩy", "ép phẩy x").
-- Greek letters: pronounce them naturally in the content's language (e.g., α → "alpha", β → "beta", ε → "epsilon", ω → "omega").
-- Abbreviations: spell out letter by letter in the content's language.
-- Do not use symbols like = + - × $ ^ _ { }, replace them with words in the document's language.`;
+CÁCH ĐỌC SLIDE:
+- Đọc tiêu đề trước, sau đó giảng nội dung bên dưới.
+- Với danh sách gạch đầu dòng: "Thứ nhất là...", "Tiếp theo...", "Ngoài ra...", "Cuối cùng...".
+- Với bảng biểu: "Bảng này gồm... Hàng đầu tiên... Hàng thứ hai...".
+- Với hình ảnh, sơ đồ: mô tả ngắn gọn nội dung.
+- Công thức toán: "p bằng u nhân i", "x bình phương", "căn bậc hai của x", "đạo hàm của f tại x", "tích phân từ a đến b".
+- Ký hiệu toán: "lớn hơn", "nhỏ hơn", "bằng", "cộng", "trừ", "nhân", "chia", "mũ", "căn", "phần trăm".
+- Chữ Hy Lạp: alpha, beta, gamma, delta, epsilon, theta, lambda, mu, pi, sigma, omega.
+- Công thức hóa: H2O đọc "H hai O", CO2 đọc "C O hai", NaCl đọc "Na Cl".
+- Chữ viết tắt: đánh vần từng chữ (CPU → "xê pê u", PDF → "pê đê ép", AI → "a i").
+- TUYỆT ĐỐI KHÔNG dùng ký hiệu = + - × $ ^ _ { } — luôn thay bằng lời.
+- KHÔNG dùng markdown hay ký tự đặc biệt (**bold**, *italic*, code, ## heading, - bullet).
+- KHÔNG dùng ký tự đặc biệt nào cả. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).`;
+
 
     let userPrompt;
     let expectJson = false;
     if (hasImage && hasVision) {
       expectJson = true;
-      userPrompt = `Lecture on the full content of the document page in the attached image.
+      userPrompt = `Giảng nội dung đầy đủ của trang tài liệu trong ảnh đính kèm.
 
-IMPORTANT: Return the result as JSON with this structure:
+QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
 {
   "segments": [
     {
-      "explanation_text": "lecture content for this region, written as a SINGLE continuous paragraph, following all lecture rules from the system prompt",
+      "explanation_text": "nội dung giảng cho vùng này, viết thành MỘT đoạn văn liên tục, tuân theo mọi luật giảng từ system prompt",
       "region_vert": [0, 0.35]
     },
     {
-      "explanation_text": "lecture content for the next region",
+      "explanation_text": "nội dung giảng cho vùng tiếp theo",
       "region_vert": [0.35, 0.65]
     }
   ]
 }
-region_vert is [top, bottom] as percentage of page height (values 0-1).
-Split the page into vertical regions corresponding to each content section.
-Do NOT add any text outside the JSON.`;
+region_vert là [trên, dưới] tính theo phần trăm chiều cao trang (giá trị 0-1).
+Chia trang thành các vùng dọc tương ứng với mỗi phần nội dung.
+KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     } else {
       userPrompt = pageText
-        ? `Lecture on the document page content below (lines starting with ## are headings, blank lines separate sections):\n\n${pageText}`
-        : `Lecture on the document page content.`;
+        ? `Giảng nội dung trang tài liệu bên dưới (dòng bắt đầu bằng ## là tiêu đề, dòng trống ngăn cách các phần):\n\n${pageText}`
+        : `Giảng nội dung trang tài liệu.`;
     }
 
     const effectiveImage = (hasImage && hasVision) ? imageBase64 : null;
@@ -222,6 +228,14 @@ Do NOT add any text outside the JSON.`;
         }));
         voiceText = segments.map(s => s.text).join(' ');
       }
+    } else if (voiceText && voiceText.length > 0) {
+      const parts = voiceText.split(/[.!?]\s+/).filter(s => s.trim().length > 10);
+      if (parts.length >= 2) {
+        segments = parts.map((s, i) => ({
+          text: s,
+          regionVert: [i / parts.length, (i + 1) / parts.length]
+        }));
+      }
     }
 
     // Lưu tóm tắt vào bộ nhớ ngữ cảnh
@@ -237,25 +251,51 @@ Do NOT add any text outside the JSON.`;
    * Trả lời câu hỏi trong chat
    */
   async askQuestion(question, imageBase64, pageText) {
-    const systemPrompt = `You are a lecturer answering a student's question. Answer based on the document page content.
+    const systemPrompt = `Bạn là giảng viên đang trả lời câu hỏi của sinh viên. Trả lời dựa trên nội dung trang tài liệu và lịch sử trò chuyện.
 
-You MUST return valid JSON with exactly 2 fields:
+Bạn PHẢI trả về JSON hợp lệ với đúng 2 trường:
 {
   "voice_text": "...",
   "display_text": "..."
 }
 
-LANGUAGE RULE: Respond in the EXACT SAME LANGUAGE as the question and document content. If the student asks in Vietnamese, answer in Vietnamese. If in English, answer in English. Match the language automatically.`;
+NGỮ CẢNH HỘI THOẠI: Khi có lịch sử trò chuyện ở phần "LỊCH SỬ TRÒ CHUYỆN" bên dưới, hãy sử dụng nó để trả lời mạch lạc, có ngữ cảnh. Tham chiếu tự nhiên đến các câu trước (vd: "Như tôi đã nói...", "Quay lại câu hỏi trước của bạn...").
 
-    const userPrompt = `Current page text content (for reference): ${pageText}
+LUẬT NGÔN NGỮ: Luôn trả lời bằng TIẾNG VIỆT.`;
 
-Student's question: ${question}
+    let historyBlock = '';
+    if (this.provider !== 'deepseek') {
+      const history = this.chatHistory;
+      if (history.length > 0) {
+        historyBlock = '\nLỊCH SỬ TRÒ CHUYỆN:\n';
+        for (const h of history) {
+          const label = h.role === 'user' ? 'Người dùng' : 'AI';
+          const shortText = (h.text || '').substring(0, 150);
+          historyBlock += `- ${label}: ${shortText}\n`;
+        }
+        if (historyBlock.length > 4000) {
+          historyBlock = this._summarizeOldHistory();
+        }
+      }
+    }
 
-Answer in JSON with 2 fields:
+    let docBlock = '';
+    if (this.docContext.length > 0) {
+      docBlock = '\nTÓM TẮT TÀI LIỆU ĐÃ GIẢNG:\n';
+      for (const c of this.docContext) {
+        docBlock += `- Trang ${c.page}: ${c.summary}\n`;
+      }
+    }
 
-1. "voice_text": Detailed explanation in a SINGLE continuous paragraph, NO line breaks, NO bullet points, NO numbering. Verbalize all formulas in words matching the content's language (e.g., in English: "P equals U times I", "P prime"; in Vietnamese: "p bằng u nhân i", "p phẩy"). Do NOT use math symbols or LaTeX. Spell out abbreviations letter by letter. Natural lecturer-like tone.
+    const userPrompt = `Nội dung trang hiện tại (để tham khảo): ${pageText}
+${docBlock}${historyBlock}
+Câu hỏi của sinh viên: ${question}
 
-2. "display_text": CONCISE summary. Use LaTeX for formulas (e.g., $P'$ or $f'(x)$, do NOT write out formula words). Clear structure. Only key points, NO lengthy explanation.`;
+Trả lời bằng JSON với 2 trường:
+
+1. "voice_text": Giải thích chi tiết bằng MỘT đoạn văn liên tục, KHÔNG xuống dòng, KHÔNG gạch đầu dòng, KHÔNG đánh số. Diễn đạt mọi công thức bằng lời (vd: "p bằng u nhân i", "x bình phương", "đạo hàm của f tại x"). KHÔNG dùng ký hiệu toán học hay LaTeX. Đánh vần từng chữ cái với các chữ viết tắt. Giọng điệu tự nhiên như giảng viên.
+
+2. "display_text": Tóm tắt NGẮN GỌN. Dùng LaTeX cho công thức (vd: $P'$ hoặc $f'(x)$). Cấu trúc rõ ràng. Chỉ ý chính, KHÔNG giải thích dài dòng.`;
 
     const hasImage = imageBase64 && imageBase64.length > 100;
     const hasVision = this.hasVision();
@@ -263,23 +303,32 @@ Answer in JSON with 2 fields:
 
     const rawResponse = await this._callAPI(userPrompt, effectiveImage, systemPrompt, true, pageText);
 
-    try {
-      const parsed = JSON.parse(rawResponse);
-      const voiceText = parsed.voice_text || parsed.voiceText || parsed.voice || parsed.speech || '';
-      const displayText = parsed.display_text || parsed.displayText || parsed.display || parsed.text || '';
-      return { voice_text: voiceText, display_text: displayText };
-    } catch (e) {
-      const jsonMatch = rawResponse.match(/\{[\s\S]*?(voice_text|voiceText|voice|displayText|display_text|display)[\s\S]*?\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const voiceText = parsed.voice_text || parsed.voiceText || parsed.voice || parsed.speech || '';
-          const displayText = parsed.display_text || parsed.displayText || parsed.display || parsed.text || '';
-          return { voice_text: voiceText, display_text: displayText };
-        } catch (e2) { /* fallback */ }
+    const parseResult = () => {
+      try {
+        const parsed = JSON.parse(rawResponse);
+        const voiceText = parsed.voice_text || parsed.voiceText || parsed.voice || parsed.speech || '';
+        const displayText = parsed.display_text || parsed.displayText || parsed.display || parsed.text || '';
+        return { voice_text: voiceText, display_text: displayText };
+      } catch (e) {
+        const jsonMatch = rawResponse.match(/\{[\s\S]*?(voice_text|voiceText|voice|displayText|display_text|display)[\s\S]*?\}/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const voiceText = parsed.voice_text || parsed.voiceText || parsed.voice || parsed.speech || '';
+            const displayText = parsed.display_text || parsed.displayText || parsed.display || parsed.text || '';
+            return { voice_text: voiceText, display_text: displayText };
+          } catch (e2) { /* fallback */ }
+        }
+        return { voice_text: rawResponse, display_text: rawResponse };
       }
-      return { voice_text: rawResponse, display_text: rawResponse };
-    }
+    };
+
+    const result = parseResult();
+
+    this.addChatTurn('user', question);
+    this.addChatTurn('ai', result.voice_text);
+
+    return result;
   }
 
   /**
@@ -300,9 +349,10 @@ Answer in JSON with 2 fields:
     try {
       if (this.provider === 'ollama') {
         result = await this._callOllamaAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
+      } else if (this.provider === 'deepseek') {
+        result = await this._callDeepseekAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
       } else if (this.provider === 'nvidia') {
         result = await this._callNvidiaAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
-      } else if (this.provider === 'openrouter') {
       } else {
         result = await this._callGeminiAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText);
       }
@@ -329,7 +379,7 @@ Answer in JSON with 2 fields:
   _getModelName() {
     if (this.provider === 'gemini') return this.geminiModel;
     if (this.provider === 'nvidia') return this.nvidiaModel;
-    if (this.provider === 'openrouter') return this.openrouterModel;
+    if (this.provider === 'deepseek') return this.deepseekModel;
     if (this.provider === 'ollama') return this.ollamaModel;
     return 'unknown';
   }
@@ -397,101 +447,166 @@ Answer in JSON with 2 fields:
     return entry;
   }
 
+  setPdfName(name) {
+    if (name !== this._pdfName) {
+      this._pdfName = name;
+      this.chatHistory = [];
+      this._deepseekConvId = null;
+      this._loadChatHistory();
+    }
+  }
+
+  addChatTurn(role, text) {
+    this.chatHistory.push({
+      role,
+      text,
+      pageNum: 0,
+      timestamp: Date.now()
+    });
+    if (this.chatHistory.length > 20) {
+      this.chatHistory.shift();
+    }
+    this._saveChatHistory();
+  }
+
+  getChatHistory() {
+    return this.chatHistory;
+  }
+
+  clearChatHistory() {
+    this.chatHistory = [];
+    this._deepseekConvId = null;
+    try {
+      localStorage.removeItem('chat_history_' + this._pdfName);
+    } catch (e) { /* ignore */ }
+  }
+
+  _saveChatHistory() {
+    if (!this._pdfName) return;
+    try {
+      localStorage.setItem('chat_history_' + this._pdfName, JSON.stringify(this.chatHistory));
+    } catch (e) {
+      console.warn('[ScholarVoice] Cannot save chat history:', e.message);
+    }
+  }
+
+  _loadChatHistory() {
+    if (!this._pdfName) return;
+    try {
+      const saved = localStorage.getItem('chat_history_' + this._pdfName);
+      if (saved) {
+        this.chatHistory = JSON.parse(saved);
+      }
+    } catch (e) {
+      this.chatHistory = [];
+    }
+  }
+
+  _summarizeOldHistory() {
+    const recent = this.chatHistory.slice(-10);
+    let summary = 'TÓM TẮT ĐOẠN TRƯỚC: ';
+    const oldTurns = this.chatHistory.slice(0, -10);
+    for (const h of oldTurns) {
+      const label = h.role === 'user' ? 'Người dùng' : 'AI';
+      summary += `[${label}: ${(h.text || '').substring(0, 60)}] `;
+    }
+    summary += '\nCÁC CÂU HỎI GẦN ĐÂY:\n';
+    for (const h of recent) {
+      const label = h.role === 'user' ? 'Người dùng' : 'AI';
+      summary += `- ${label}: ${(h.text || '').substring(0, 100)}\n`;
+    }
+    return summary;
+  }
+
   clearCache() {
     this.pageCache.clear();
     this.docContext = [];
+    this.clearChatHistory();
   }
 
   // ============================================================
-  //  OPENROUTER API (OpenAI Compatible)
+  //  DEEPSEEK API (Free via local deepseek-api server)
   // ============================================================
 
-  async _callOpenRouterAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText) {
-    if (!this.openrouterKey) {
-      throw new Error('Chưa nhập OpenRouter API key.');
-    }
+  async _callDeepseekAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText) {
+    this.abort();
+    this._abortController = new AbortController();
 
-    const abortController = new AbortController();
-
-    const isVisionModel = this.openrouterVision;
-    let userContent;
-    if (isVisionModel && imageBase64) {
-      let textWithPrompt = prompt;
-      if (pageText) {
-        textWithPrompt = `${prompt}\n\nNội dung văn bản trong trang (tham khảo chính xác):\n${pageText}`;
-      }
-      userContent = [
-        { type: 'text', text: textWithPrompt },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${imageBase64}`
-          }
-        }
-      ];
-    } else {
-      userContent = prompt;
-      if (pageText) {
-        userContent = `${prompt}\n\nNội dung trang:\n${pageText}`;
-      }
+    let userContent = prompt;
+    if (pageText) {
+      userContent = `${prompt}\n\nNội dung trang:\n${pageText}`;
     }
 
     const body = {
-      model: this.openrouterModel,
+      _target_url: this.deepseekUrl,
+      model: this.deepseekModel,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
       ],
       max_tokens: this._getMaxTokens(),
       temperature: 0.7,
-      top_p: 0.95,
     };
+
+    if (this._deepseekConvId) {
+      body.conversation_id = this._deepseekConvId;
+    }
 
     if (jsonMode) {
       body.response_format = { type: 'json_object' };
     }
 
-    try {
-      const response = await fetch('/api/openrouter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Api-Key': this.openrouterKey
-        },
-        body: JSON.stringify(body),
-        signal: abortController.signal
-      });
+    const maxRetries = 3;
+    let lastError = null;
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        const errMsg = errData?.error?.message || `HTTP ${response.status}`;
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('OpenRouter API key không hợp lệ. Kiểm tra lại.');
-        }
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch('/api/deepseek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: this._abortController.signal
+        });
+
         if (response.status === 429) {
-          throw new Error('Vượt quá giới hạn OpenRouter API. Chờ một lát rồi thử lại.');
+          const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
+          if (attempt < maxRetries) {
+            const delay = Math.min(retryAfter * 1000, 30000);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          throw new Error('DeepSeek quá tải. Đợi 30 giây rồi thử lại.');
         }
-        if (response.status === 402) {
-          throw new Error('Tài khoản OpenRouter hết credit. Nạp thêm tại openrouter.ai.');
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || `HTTP ${response.status}`;
+          if (response.status === 503) {
+            throw new Error('Không kết nối được DeepSeek server. Đảm bảo server đang chạy và URL đúng.');
+          }
+          throw new Error(`Lỗi DeepSeek API: ${errMsg}`);
         }
-        throw new Error(`Lỗi OpenRouter API: ${errMsg}`);
+
+        const data = await response.json();
+        if (!data.choices?.length) {
+          throw new Error('DeepSeek API không trả về kết quả.');
+        }
+        if (data.conversation_id) {
+          this._deepseekConvId = data.conversation_id;
+        }
+        return data.choices[0].message.content;
+
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error('Đã hủy yêu cầu.');
+        if (err.message.includes('Failed to fetch')) {
+          throw new Error('Không kết nối được DeepSeek server.');
+        }
+        if (!err.message.includes('429') && !err.message.includes('quá tải')) throw err;
+        lastError = err;
       }
-
-      const data = await response.json();
-
-      if (!data.choices?.length) {
-        throw new Error('OpenRouter API không trả về kết quả.');
-      }
-
-      return data.choices[0].message.content;
-
-    } catch (err) {
-      if (err.name === 'AbortError') throw new Error('Đã hủy yêu cầu.');
-      if (err.message.includes('Failed to fetch')) {
-        throw new Error('Không kết nối được server proxy. Hãy đảm bảo server.py đang chạy.');
-      }
-      throw err;
     }
+
+    throw lastError || new Error('DeepSeek không phản hồi sau 3 lần thử.');
   }
 
   // ============================================================
@@ -503,7 +618,8 @@ Answer in JSON with 2 fields:
       throw new Error('Chưa nhập NVIDIA API key.');
     }
 
-    const abortController = new AbortController();
+    this.abort();
+    this._abortController = new AbortController();
 
     const isVisionModel = this.nvidiaVision;
     let userContent;
@@ -552,7 +668,7 @@ Answer in JSON with 2 fields:
           'X-Api-Key': this.nvidiaKey
         },
         body: JSON.stringify(body),
-        signal: abortController.signal
+        signal: this._abortController.signal
       });
 
       if (!response.ok) {
@@ -586,7 +702,8 @@ Answer in JSON with 2 fields:
   // ============================================================
 
   async _callOllamaAPI(prompt, imageBase64, systemPrompt, jsonMode, pageText) {
-    const abortController = new AbortController();
+    this.abort();
+    this._abortController = new AbortController();
 
     const url = `${this.ollamaUrl}/api/chat`;
 
@@ -618,7 +735,7 @@ Answer in JSON with 2 fields:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: abortController.signal
+        signal: this._abortController.signal
       });
 
       if (!response.ok) {

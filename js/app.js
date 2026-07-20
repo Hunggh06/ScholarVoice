@@ -21,6 +21,18 @@ class App {
     this._prefetchRunning = false;
     this._prefetchTimer = null;
     this._pendingPages = new Set();
+    this._customStyleTimer = null;
+    this._prefetchFailures = 0;
+    this._isTeaching = false;
+  }
+
+  _cancelPrefetch() {
+    clearTimeout(this._prefetchTimer);
+    this._prefetchTimer = null;
+    this._prefetchRunning = false;
+    this._pendingPages.clear();
+    this._prefetchFailures = 0;
+    this.aiEngine.abort();
   }
 
   /** Khởi tạo ứng dụng */
@@ -127,7 +139,10 @@ class App {
   }
 
   _formatTime(pct) {
-    const totalSec = this.ttsEngine.totalChunks > 0 ? this.ttsEngine.totalChunks * 8 : 0;
+    const fullText = this.ttsEngine._fullText || '';
+    const totalChars = fullText.length;
+    const rate = this.ttsEngine.rate || 1.0;
+    const totalSec = totalChars > 0 ? Math.max(1, Math.ceil(totalChars / (15 * rate))) : 0;
     const sec = Math.round(totalSec * pct);
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -149,8 +164,8 @@ class App {
       btn.addEventListener('click', () => {
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        this._cancelPrefetch();
         this.aiEngine.saveSettings({ teachingStyle: btn.dataset.style });
-        this.aiEngine.clearCache();
         this._showToast(`Chế độ: ${btn.textContent.trim()}`, 'info');
       });
     });
@@ -159,7 +174,10 @@ class App {
     if (customInput) {
       customInput.value = this.aiEngine.customStyle || '';
       customInput.addEventListener('input', () => {
-        this.aiEngine.saveSettings({ customStyle: customInput.value });
+        clearTimeout(this._customStyleTimer);
+        this._customStyleTimer = setTimeout(() => {
+          this.aiEngine.saveSettings({ customStyle: customInput.value });
+        }, 300);
       });
     }
   }
@@ -229,7 +247,6 @@ class App {
     const savedRate = localStorage.getItem('tts_rate') || '1.0';
     slider.value = savedRate;
     label.textContent = `${parseFloat(savedRate).toFixed(1)}x`;
-    this.ttsEngine.rate = parseFloat(savedRate);
 
     slider.addEventListener('input', () => {
       const rate = parseFloat(slider.value);
@@ -251,40 +268,57 @@ class App {
     if (!sel) return;
 
     const populate = () => {
-      const voices = this.ttsEngine.getAllVoices();
-      if (!voices || voices.length === 0) return;
+      const allVoices = this.ttsEngine.getAllVoices();
+      if (!allVoices || allVoices.length === 0) return;
       const savedName = this.ttsEngine._voiceName;
       sel.innerHTML = '';
 
+      const viVoices = allVoices.filter(v => v.lang && (v.lang.startsWith('vi')));
+      const otherVoices = allVoices.filter(v => !v.lang || !v.lang.startsWith('vi'));
+
+      let foundSaved = false;
+
+      if (viVoices.length > 0) {
+        const viGroup = document.createElement('optgroup');
+        viGroup.label = 'Tiếng Việt';
+        for (const v of viVoices) {
+          const opt = document.createElement('option');
+          opt.value = v.name;
+          opt.textContent = v.name.replace(/(Microsoft|Online|Natural|Windows|Mozilla|Google|Apple)\s*/g, '').trim() || v.name;
+          if (v.name === savedName) { opt.selected = true; foundSaved = true; }
+          viGroup.appendChild(opt);
+        }
+        sel.appendChild(viGroup);
+      }
+
       const groups = {};
-      for (const v of voices) {
-        const lang = v.lang || 'unknown';
+      for (const v of otherVoices) {
+        const lang = v.lang || 'Khác';
         if (!groups[lang]) groups[lang] = [];
         groups[lang].push(v);
       }
 
-      let foundSaved = false;
-      const sortedLangs = Object.keys(groups).sort();
-      for (const lang of sortedLangs) {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = lang;
-        const items = groups[lang];
-        for (const v of items) {
-          const opt = document.createElement('option');
-          opt.value = v.name;
-          opt.textContent = v.name.replace(/(Microsoft|Online|Natural|Windows|Mozilla|Google|Apple)\s*/g, '').trim() || v.name;
-          if (v.name === savedName) {
-            opt.selected = true;
-            foundSaved = true;
+      if (otherVoices.length > 0) {
+        const otherGroup = document.createElement('optgroup');
+        otherGroup.label = 'Ngôn ngữ khác';
+        for (const lang of Object.keys(groups).sort()) {
+          for (const v of groups[lang]) {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            opt.textContent = `[${lang}] ` + (v.name.replace(/(Microsoft|Online|Natural|Windows|Mozilla|Google|Apple)\s*/g, '').trim() || v.name);
+            if (v.name === savedName) { opt.selected = true; foundSaved = true; }
+            otherGroup.appendChild(opt);
           }
-          optgroup.appendChild(opt);
         }
-        sel.appendChild(optgroup);
+        sel.appendChild(otherGroup);
       }
 
-      if (!foundSaved && voices.length > 0) {
-        sel.value = voices[0].name;
-        this.ttsEngine.setVoiceByName(voices[0].name);
+      if (!foundSaved && viVoices.length > 0) {
+        sel.value = viVoices[0].name;
+        this.ttsEngine.setVoiceByName(viVoices[0].name);
+      } else if (!foundSaved && allVoices.length > 0) {
+        sel.value = allVoices[0].name;
+        this.ttsEngine.setVoiceByName(allVoices[0].name);
       } else if (foundSaved) {
         sel.value = savedName;
       }
@@ -315,15 +349,11 @@ class App {
     document.getElementById('nvidia-key-input').value = s.nvidiaKey;
     document.getElementById('nvidia-model').value = s.nvidiaModel;
     document.getElementById('nvidia-vision').checked = s.nvidiaVision || false;
-    document.getElementById('cf-account-id').value = s.cfAccountId || '';
-    document.getElementById('cf-api-token').value = s.cfApiToken || '';
-    document.getElementById('cf-model').value = s.cfModel;
-    document.getElementById('openrouter-key-input').value = s.openrouterKey || '';
-    document.getElementById('openrouter-model').value = s.openrouterModel;
-    document.getElementById('openrouter-vision').checked = s.openrouterVision || true;
     document.getElementById('ollama-model').value = s.ollamaModel;
     document.getElementById('ollama-url').value = s.ollamaUrl;
     document.getElementById('ollama-vision').checked = s.ollamaVision;
+    document.getElementById('deepseek-model').value = s.deepseekModel || 'deepseek-chat';
+    document.getElementById('deepseek-url').value = s.deepseekUrl || 'http://localhost:8000';
 
     this._toggleProviderUI(s.provider);
   }
@@ -335,7 +365,7 @@ class App {
   _toggleProviderUI(provider) {
     document.getElementById('gemini-settings').classList.toggle('hidden', provider !== 'gemini');
     document.getElementById('nvidia-settings').classList.toggle('hidden', provider !== 'nvidia');
-    document.getElementById('openrouter-settings').classList.toggle('hidden', provider !== 'openrouter');
+    document.getElementById('deepseek-settings').classList.toggle('hidden', provider !== 'deepseek');
     document.getElementById('ollama-settings').classList.toggle('hidden', provider !== 'ollama');
   }
 
@@ -345,11 +375,8 @@ class App {
         this._showToast('Chưa tải PDF', 'error');
         return;
       }
-      this.aiEngine.abort();
+      this._cancelPrefetch();
       this.isProcessing = false;
-      clearTimeout(this._prefetchTimer);
-      this._prefetchRunning = false;
-      this._pendingPages.clear();
       this.ttsEngine.stop();
       this.currentVoiceText = '';
       this.currentSegments = null;
@@ -382,15 +409,11 @@ class App {
         nvidiaKey: document.getElementById('nvidia-key-input').value,
         nvidiaModel: document.getElementById('nvidia-model').value,
         nvidiaVision: document.getElementById('nvidia-vision').checked,
-        cfAccountId: document.getElementById('cf-account-id').value,
-        cfApiToken: document.getElementById('cf-api-token').value,
-        cfModel: document.getElementById('cf-model').value,
-        openrouterKey: document.getElementById('openrouter-key-input').value,
-        openrouterModel: document.getElementById('openrouter-model').value,
-        openrouterVision: document.getElementById('openrouter-vision').checked,
         ollamaModel: document.getElementById('ollama-model').value,
         ollamaUrl: document.getElementById('ollama-url').value,
         ollamaVision: document.getElementById('ollama-vision').checked,
+        deepseekModel: document.getElementById('deepseek-model').value,
+        deepseekUrl: document.getElementById('deepseek-url').value,
       });
       this.aiEngine.clearCache();
 
@@ -398,7 +421,7 @@ class App {
       const labels = {
         gemini: 'Gemini API',
         nvidia: `NVIDIA (${this.aiEngine.nvidiaModel})`,
-        openrouter: `OpenRouter (${this.aiEngine.openrouterModel})`,
+        deepseek: `DeepSeek (${this.aiEngine.deepseekModel})`,
         ollama: `Ollama (${this.aiEngine.ollamaModel})`
       };
       this._showToast(`Đã lưu: ${labels[provider]}`, 'success');
@@ -457,6 +480,7 @@ class App {
     try {
       this._updateVoiceStatus('loading', 'Đang tải PDF...');
       this._pdfFileName = file.name;
+      this.aiEngine.setPdfName(file.name);
 
       const totalPages = await this.pdfViewer.loadPDF(file);
 
@@ -573,7 +597,7 @@ class App {
   async _navigatePage(direction) {
     if (!this.pdfViewer.isLoaded) return;
 
-    this.aiEngine.abort();
+    this._cancelPrefetch();
     this.isProcessing = false;
 
     this.ttsEngine.stop();
@@ -624,7 +648,8 @@ class App {
 
       this.currentVoiceText = entry.voice_text;
       this.currentSegments = entry.segments || null;
-      this.ttsEngine.speak(entry.voice_text);
+      this.ttsEngine.speak(this._cleanVoiceText(entry.voice_text));
+      this._isTeaching = true;
       this._setVoiceButtonsEnabled(true);
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._autoPrefetch();
@@ -653,7 +678,8 @@ class App {
       this.currentVoiceText = result.voice_text;
       this.currentSegments = result.segments || null;
 
-      this.ttsEngine.speak(result.voice_text);
+      this.ttsEngine.speak(this._cleanVoiceText(result.voice_text));
+      this._isTeaching = true;
       this._setVoiceButtonsEnabled(true);
       this._autoPrefetch();
 
@@ -677,7 +703,7 @@ class App {
 
   /**
    * Pre-fetch dần dần các trang phía sau, mỗi lần 1 trang
-   * Dừng khi gặp trang đã có cache hoặc hết file
+   * Tiếp tục tự động qua _autoPrefetch sau mỗi lần gọi
    */
   async _prefetchNextPages() {
     const current = this.pdfViewer.currentPage;
@@ -699,9 +725,16 @@ class App {
         }
         await this.aiEngine.teachPage(imageBase64, pageNum, pageText);
         console.log(`[Prefetch] Đã cache trang ${pageNum}`);
+        this._prefetchFailures = 0;
         break;
       } catch (err) {
         console.log(`[Prefetch] Trang ${pageNum} thất bại:`, err.message);
+        this._prefetchFailures++;
+        if (this._prefetchFailures >= 3) {
+          console.log('[Prefetch] Dừng sau 3 lỗi liên tiếp');
+          this._prefetchRunning = false;
+          return;
+        }
         break;
       } finally {
         this._pendingPages.delete(pageNum);
@@ -790,6 +823,7 @@ class App {
     });
 
     document.getElementById('btn-stop').addEventListener('click', () => {
+      this._isTeaching = false;
       this.ttsEngine.stop();
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
@@ -813,12 +847,12 @@ class App {
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
       this._updateSeekSlider(true);
-      const totalSec = this.ttsEngine.totalChunks * 8;
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
     };
 
     this.ttsEngine.onEnd = () => {
+      this._isTeaching = false;
       this._updateVoiceStatus('done', `Đã giảng xong trang ${this.pdfViewer.currentPage}`);
       this._updatePlayPauseBtn(false);
       this._updateSeekSlider(false);
@@ -837,6 +871,7 @@ class App {
     };
 
     this.ttsEngine.onError = (err) => {
+      this._isTeaching = false;
       this._updateVoiceStatus('error', err.message);
       this._updateSeekSlider(false);
       this.currentSegments = null;
@@ -913,6 +948,14 @@ class App {
     this.chatManager.onSend = async (text) => {
       await this._handleChatMessage(text);
     };
+    this.chatManager.onClear = () => {
+      this.aiEngine.clearChatHistory();
+      this.chatManager.clearMessages();
+    };
+    document.getElementById('chat-clear-btn').addEventListener('click', () => {
+      this.aiEngine.clearChatHistory();
+      this.chatManager.clearMessages();
+    });
   }
 
   async _handleChatMessage(question) {
@@ -928,7 +971,9 @@ class App {
 
     this.chatManager.addUserMessage(question);
 
-    this.ttsEngine.stop();
+    if (!this._isTeaching) {
+      this.ttsEngine.stop();
+    }
     this._updateVoiceStatus('analyzing', 'Đang suy nghĩ...');
 
     this.chatManager.showLoading();
@@ -943,11 +988,15 @@ class App {
       this.chatManager.hideLoading();
 
       this.chatManager.addAIMessage(result.display_text);
+      this.chatManager.updateContextIndicator(Math.floor(this.aiEngine.chatHistory.length / 2));
 
-      if (result.voice_text && result.voice_text.trim().length > 0) {
+      if (result.voice_text && result.voice_text.trim().length > 0 && !this._isTeaching) {
         this.currentVoiceText = result.voice_text;
-        this.ttsEngine.speak(result.voice_text);
+        this.ttsEngine.speak(this._cleanVoiceText(result.voice_text));
         this._setVoiceButtonsEnabled(true);
+      } else if (result.voice_text && this._isTeaching) {
+        this.currentVoiceText = result.voice_text;
+        this._updateVoiceStatus('done', 'Đã trả lời (đang đọc trang)');
       } else {
         this._updateVoiceStatus('done', 'Đã trả lời xong (không có giọng đọc)');
       }
@@ -1069,6 +1118,11 @@ class App {
         throw new Error('File cache không hợp lệ');
       }
 
+      if (data.provider && data.provider !== this.aiEngine.provider) {
+        this._showToast(`Cache từ provider "${data.provider}" — không áp dụng cho "${this.aiEngine.provider}"`, 'error');
+        return;
+      }
+
       // If PDF is loaded and filename matches, restore immediately
       if (this._pdfFileName && this._pdfFileName === data.filename && this.pdfViewer.isLoaded) {
         this.aiEngine.pageCache.clear();
@@ -1183,6 +1237,21 @@ class App {
 
   _escapeHtml(text) {
     return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  _cleanVoiceText(text) {
+    return (text || '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/__/g, '')
+      .replace(/_/g, '')
+      .replace(/`/g, '')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/^[-*+]\s/gm, '')
+      .replace(/~~/g, '')
+      .replace(/[{}]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // ============================================================

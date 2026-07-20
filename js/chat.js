@@ -7,9 +7,10 @@ export class ChatManager {
     this.messagesContainer = document.getElementById('chat-messages');
     this.inputEl = document.getElementById('chat-input');
     this.sendBtn = document.getElementById('chat-send');
+    this.contextIndicator = document.getElementById('chat-context-indicator');
 
-    // Callback khi user gửi tin nhắn
     this.onSend = null;
+    this.onClear = null;
 
     this._setupEvents();
   }
@@ -121,6 +122,28 @@ export class ChatManager {
   setEnabled(enabled) {
     this.inputEl.disabled = !enabled;
     this.sendBtn.disabled = !enabled;
+  }
+
+  updateContextIndicator(count) {
+    if (!this.contextIndicator) return;
+    if (count > 0) {
+      this.contextIndicator.style.display = '';
+      this.contextIndicator.textContent = `🧠 Đang nhớ ${count} tin nhắn`;
+    } else {
+      this.contextIndicator.style.display = 'none';
+      this.contextIndicator.textContent = '🧠 0 tin nhắn';
+    }
+    const clearBtn = document.getElementById('chat-clear-btn');
+    if (clearBtn) clearBtn.style.display = count > 0 ? '' : 'none';
+  }
+
+  clearMessages() {
+    this.messagesContainer.innerHTML = '';
+    this.messagesContainer.innerHTML = `<div class="welcome-message">
+      <div class="welcome-icon">🤖</div>
+      <p>Tải PDF lên để bắt đầu học. Sau đó bạn có thể hỏi bất kỳ câu hỏi nào về nội dung!</p>
+    </div>`;
+    this.updateContextIndicator(0);
   }
 
   /** Xử lý display_text thành HTML an toàn (giữ LaTeX) */

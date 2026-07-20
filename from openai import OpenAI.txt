@@ -1,0 +1,24 @@
+from openai import OpenAI
+
+client = OpenAI(base_url="http://192.168.1.19:18000/v1", api_key="test")
+
+# 1. BẮT ĐẦU CUỘC TRÒ CHUYỆN MỚI
+resp1 = client.chat.completions.create(
+    model="deepseek-chat",
+    messages=[{"role": "user", "content": "Xin chào, tôi tên là Tuấn."}],
+)
+print("DeepSeek 1:", resp1.choices[0].message.content)
+
+# Lấy ID của cuộc trò chuyện vừa tạo (Nằm ngoài chuẩn OpenAI nên gọi qua .model_extra)
+conv_id = resp1.model_extra.get("conversation_id") if resp1.model_extra else None
+print("ID Cuộc trò chuyện:", conv_id)
+
+
+# 2. TIẾP TỤC CUỘC TRÒ CHUYỆN ĐÓ (DÙNG CHUNG)
+resp2 = client.chat.completions.create(
+    model="deepseek-chat",
+    messages=[{"role": "user", "content": "Bạn có nhớ tôi tên là gì không?"}],
+    # Gửi kèm conversation_id thông qua tham số extra_body
+    extra_body={"conversation_id": conv_id},
+)
+print("DeepSeek 2:", resp2.choices[0].message.content)

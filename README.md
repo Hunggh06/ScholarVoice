@@ -22,7 +22,7 @@ ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on
 
 - ☁️ Gemini API
 - 🟢 NVIDIA API
-- 🔗 OpenRouter
+- 🐋 DeepSeek (local)
 - 🖥️ Ollama (local)
 
 ## Installation & Usage
