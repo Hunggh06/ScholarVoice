@@ -3,3 +3,4 @@
 # Pinning Python version for Render.
 
 python-dotenv==1.0.1
+edge-tts==6.1.9

@@ -34,6 +34,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             self._proxy_nvidia()
         elif self.path == '/api/deepseek':
             self._proxy_deepseek()
+        elif self.path == '/api/tts':
+            self._proxy_tts()
         else:
             self.send_error(404)
 
@@ -132,6 +134,51 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(error_body.encode('utf-8'))
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': {'message': str(e)}}).encode('utf-8'))
+
+    def _proxy_tts(self):
+        # Sinh giong doc tu nhien qua edge-tts (Microsoft Neural TTS) - mien phi, khong can key
+        # Tra ve audio mp3 (hoac audio/mpeg) de frontend phat bang <audio>
+        try:
+            import asyncio
+            import io
+            import edge_tts
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+
+            text = (data.get('text') or '').strip()
+            if not text:
+                self.send_error(400, 'Thieu text')
+                return
+
+            voice = data.get('voice') or 'vi-VN-HoaiMyNeural'
+            # edge-tts rate: dinh dang "+20%" / "-10%" / "0%"
+            rate_pct = int(round(float(data.get('rate', 1.0)) * 100 - 100))
+            rate = f"{rate_pct:+d}%"
+
+            async def _gen():
+                buf = io.BytesIO()
+                communicate = edge_tts.Communicate(text, voice, rate=rate)
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        buf.write(chunk["data"])
+                return buf.getvalue()
+
+            audio = asyncio.run(_gen())
+            self.send_response(200)
+            self.send_header('Content-Type', 'audio/mpeg')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(audio)))
+            self.end_headers()
+            self.wfile.write(audio)
 
         except Exception as e:
             self.send_response(500)
