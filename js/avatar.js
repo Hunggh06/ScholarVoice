@@ -12,7 +12,6 @@ class TeacherAvatar {
     this._visible = true;
     this._model = null;
     this._mouthTargets = [];
-    this._armBones = { left: [], right: [] };
     this._init();
   }
 
@@ -44,78 +43,42 @@ class TeacherAvatar {
       this._model.position.set(0, -0.7, 0);
       this._model.scale.set(1.15, 1.15, 1.15);
       this._model.traverse((node) => {
-        if (node.isMesh) {
-          node.castShadow = true;
-          node.frustumCulled = false;
-          if (node.morphTargetDictionary && node.morphTargetInfluences) {
-            for (const [name, idx] of Object.entries(node.morphTargetDictionary)) {
-              const lo = name.toLowerCase();
-              if (lo.includes('mouth') || lo.includes('aa') || lo.includes('jaw') ||
-                  lo.includes('open') || lo.includes('fcl') || lo.includes('a')) {
-                this._mouthTargets.push({ node, index: idx, influences: node.morphTargetInfluences });
-              }
+        if (node.isMesh && node.morphTargetDictionary && node.morphTargetInfluences) {
+          for (const [name, idx] of Object.entries(node.morphTargetDictionary)) {
+            const lo = name.toLowerCase();
+            if (lo.includes('mouth') || lo.includes('aa') || lo.includes('jaw') ||
+                lo.includes('open') || lo.includes('fcl') || lo.includes('a')) {
+              this._mouthTargets.push({ node, index: idx, influences: node.morphTargetInfluences });
             }
           }
         }
         if (node.isBone) {
-          const lo = node.name.toLowerCase();
-          if (lo.includes('upperarm') || lo.includes('upper_arm') || lo.includes('shoulder')) {
-            if (lo.includes('left')) this._armBones.left.push(node);
-            if (lo.includes('right')) this._armBones.right.push(node);
+          // VRM humanoid bones: joint_LeftArm, joint_RightArm, joint_LeftElbow, joint_RightElbow, etc.
+          const n = node.name;
+          if (n === 'joint_LeftArm') { node.rotation.z = 0.45; node.rotation.x = -0.2; }
+          if (n === 'joint_RightArm') { node.rotation.z = -0.45; node.rotation.x = -0.2; }
+          if (n === 'joint_LeftElbow') { node.rotation.x = -0.6; }
+          if (n === 'joint_RightElbow') { node.rotation.x = -0.6; }
+          // Also try generic patterns for other VRM models
+          const lo = n.toLowerCase();
+          if (lo.includes('left') && lo.includes('arm') && !lo.includes('twist') && !lo.includes('elbow') && !lo.includes('wrist')) {
+            if (!node.rotation.z) { node.rotation.z = 0.45; node.rotation.x = -0.2; }
           }
-          if (lo.includes('lowerarm') || lo.includes('lower_arm') || lo.includes('forearm') || lo.includes('elbow')) {
-            if (lo.includes('left')) this._armBones.left.push(node);
-            if (lo.includes('right')) this._armBones.right.push(node);
+          if (lo.includes('right') && lo.includes('arm') && !lo.includes('twist') && !lo.includes('elbow') && !lo.includes('wrist')) {
+            if (!node.rotation.z) { node.rotation.z = -0.45; node.rotation.x = -0.2; }
           }
-          if (lo.includes('hand') || lo.includes('wrist')) {
-            if (lo.includes('left')) this._armBones.left.push(node);
-            if (lo.includes('right')) this._armBones.right.push(node);
+          if ((lo.includes('elbow') || lo.includes('lowerarm') || lo.includes('forearm')) && lo.includes('arm')) {
+            if (lo.includes('left')) node.rotation.x = -0.6;
+            if (lo.includes('right')) node.rotation.x = -0.6;
           }
         }
       });
-
-      console.log('[avatar] bones L:', this._armBones.left.map(b=>b.name),
-                  'R:', this._armBones.right.map(b=>b.name),
-                  'mouth:', this._mouthTargets.length);
-
-      if (this._armBones.left.length > 0 && this._armBones.right.length > 0) {
-        this._poseArms();
-      } else {
-        this._tryPoseAllBones();
-      }
-
       this._scene.add(this._model);
+      console.log('[avatar] ready, mouth:', this._mouthTargets.length);
     }, undefined, () => {});
 
     this._animate();
     window.addEventListener('resize', () => this._onResize());
-  }
-
-  _poseArms() {
-    const leftShoulder = this._armBones.left.find(b => b.name.toLowerCase().includes('upper') || b.name.toLowerCase().includes('shoulder'));
-    const rightShoulder = this._armBones.right.find(b => b.name.toLowerCase().includes('upper') || b.name.toLowerCase().includes('shoulder'));
-    const leftElbow = this._armBones.left.find(b => b.name.toLowerCase().includes('lower') || b.name.toLowerCase().includes('forearm'));
-    const rightElbow = this._armBones.right.find(b => b.name.toLowerCase().includes('lower') || b.name.toLowerCase().includes('forearm'));
-
-    if (leftShoulder) { leftShoulder.rotation.z = 0.35; leftShoulder.rotation.x = -0.15; }
-    if (rightShoulder) { rightShoulder.rotation.z = -0.35; rightShoulder.rotation.x = -0.15; }
-    if (leftElbow) { leftElbow.rotation.x = -0.5; leftElbow.rotation.z = -0.1; }
-    if (rightElbow) { rightElbow.rotation.x = -0.5; rightElbow.rotation.z = 0.1; }
-  }
-
-  _tryPoseAllBones() {
-    this._model.traverse((node) => {
-      if (!node.isBone) return;
-      const n = node.name.toLowerCase();
-      if ((n.includes('upper') || n.includes('shoulder')) && n.includes('arm')) {
-        if (n.includes('left')) { node.rotation.z = 0.35; node.rotation.x = -0.15; }
-        if (n.includes('right')) { node.rotation.z = -0.35; node.rotation.x = -0.15; }
-      }
-      if ((n.includes('lower') || n.includes('fore') || n.includes('elbow')) && n.includes('arm')) {
-        if (n.includes('left')) { node.rotation.x = -0.5; node.rotation.z = -0.1; }
-        if (n.includes('right')) { node.rotation.x = -0.5; node.rotation.z = 0.1; }
-      }
-    });
   }
 
   _animate() {
@@ -133,12 +96,10 @@ class TeacherAvatar {
 
   startTalking() { this._isTalking = true; }
   stopTalking() { this._isTalking = false; }
-
   toggle() {
     this._visible = !this._visible;
     this._container.style.display = this._visible ? 'block' : 'none';
   }
-
   _onResize() {
     const w = this._container.clientWidth || window.innerWidth / 2;
     const h = this._container.clientHeight || window.innerHeight - 60;
@@ -151,7 +112,6 @@ class TeacherAvatar {
 }
 
 let _instance = null;
-
 function getAvatar() {
   if (!_instance) {
     const c = document.getElementById('avatar-box');
@@ -161,5 +121,4 @@ function getAvatar() {
   }
   return _instance;
 }
-
 window.ScholarAvatar = { getAvatar };
