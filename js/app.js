@@ -847,7 +847,6 @@ class App {
       this._updateSeekSlider(true);
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
-      window.ScholarAvatar?.getAvatar()?.startTalking();
     };
 
     this.ttsEngine.onEnd = () => {
@@ -857,19 +856,16 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
-      window.ScholarAvatar?.getAvatar()?.stopTalking();
     };
 
     this.ttsEngine.onPause = () => {
       this._updateVoiceStatus('paused', 'Đã tạm dừng');
       this._updatePlayPauseBtn(false);
-      window.ScholarAvatar?.getAvatar()?.stopTalking();
     };
 
     this.ttsEngine.onResume = () => {
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
-      window.ScholarAvatar?.getAvatar()?.startTalking();
     };
 
     this.ttsEngine.onError = (err) => {
