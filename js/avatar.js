@@ -29,50 +29,35 @@ class TeacherAvatar {
     const dl = new THREE.DirectionalLight(0xffffff, 5);
     dl.position.set(1, 4, 4);
     this._s.add(dl);
-    const fl = new THREE.DirectionalLight(0xaaccff, 2);
-    fl.position.set(-1, 1, -1);
-    this._s.add(fl);
 
     const loader = new GLTFLoader();
     loader.load('1347496417698417678.vrm', gltf => {
       const model = gltf.scene;
       model.position.set(0, -0.7, 0);
       model.scale.set(1.2, 1.2, 1.2);
-      model.rotation.y = Math.PI; // face camera
+      model.rotation.y = Math.PI;
 
-      // Collect ALL bones and ALL morph targets
-      const bones = {};
+      // DUMP ALL node names and types
+      const allJoints = [];
+      const allBones = [];
       model.traverse(n => {
-        // VRM bones often stored as regular Object3D, not THREE.Bone
-        if (n.name && n.name.startsWith('joint_')) {
-          bones[n.name] = n;
+        if (n.name && (n.name.includes('joint_') || n.name.includes('Arm') || n.name.includes('Elbow') || n.name.includes('Shoulder') || n.isBone)) {
+          allJoints.push(n.name + (n.isBone ? ' [BONE]' : ' [OBJ]'));
         }
-        // Mouth morphs — search ALL names
-        if (n.isMesh && n.morphTargetDictionary && n.morphTargetInfluences) {
+        if (n.isBone) allBones.push(n.name);
+        if (n.isMesh && n.morphTargetDictionary) {
           for (const [name, idx] of Object.entries(n.morphTargetDictionary)) {
             const lo = name.toLowerCase();
-            if (lo.includes('mouth') || lo.includes('mth') || lo.includes('jaw') || lo.includes('aa') || lo.includes('ih') || lo.includes('ou') || lo.includes('ee') || lo.includes('oh') || lo.includes('blink')) {
+            if (lo.includes('mouth') || lo.includes('mth') || lo.includes('jaw') || lo.includes('aa')) {
               this._mouth.push({ node: n, index: idx, infl: n.morphTargetInfluences });
             }
           }
         }
       });
 
-      console.log('[avatar] arm bones:', Object.keys(bones).filter(k => k.includes('Arm') || k.includes('Elbow')));
+      console.log('[avatar] ALL joint/bone nodes:', allJoints);
+      console.log('[avatar] isBone nodes:', allBones);
       console.log('[avatar] mouth targets:', this._mouth.length);
-
-      // Pose: rotate upper arms down
-      const la = bones['joint_LeftArm'];
-      const ra = bones['joint_RightArm'];
-      const le = bones['joint_LeftElbow'];
-      const re = bones['joint_RightElbow'];
-
-      if (la) la.rotation.set(-0.2, 0, 0.5);
-      if (ra) ra.rotation.set(-0.2, 0, -0.5);
-      if (le) le.rotation.set(-0.5, 0, 0);
-      if (re) re.rotation.set(-0.5, 0, 0);
-
-      console.log('[avatar] posed:', !!la, !!ra, !!le, !!re);
 
       this._s.add(model);
     }, p => {
