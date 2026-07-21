@@ -1,17 +1,20 @@
-try {
-
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-console.log('[avatar] imports OK, THREE:', THREE.REVISION);
+console.log('[avatar] THREE r' + THREE.REVISION);
+
+const VRM_BONE_NAMES = {
+  leftUpperArm: 'joint_LeftArm',
+  rightUpperArm: 'joint_RightArm',
+  leftLowerArm: 'joint_LeftElbow',
+  rightLowerArm: 'joint_RightElbow',
+};
 
 class TeacherAvatar {
   constructor(container) {
     this._c = container;
     this._cv = document.getElementById('avatar-canvas');
     this._s = new THREE.Scene();
-    this._vrm = null;
     this._isTalking = false;
     this._init();
   }
@@ -36,26 +39,69 @@ class TeacherAvatar {
     this._s.add(dl);
 
     const loader = new GLTFLoader();
-    loader.register(parser => new VRMLoaderPlugin(parser, { autoUpdateHumanBones: true }));
+    loader.load('1347496417698417678.vrm', gltf => {
+      const model = gltf.scene;
+      model.position.set(0, -0.8, 0);
+      model.scale.set(1.2, 1.2, 1.2);
 
-    console.log('[avatar] loading VRM...');
-    loader.load('1347496417698417678.vrm',
-      gltf => {
-        this._vrm = gltf.userData.vrm;
-        console.log('[avatar] VRM parsed, vrm:', !!this._vrm);
-        if (!this._vrm) { console.warn('[avatar] no VRM in gltf.userData'); return; }
-        VRMUtils.removeUnnecessaryJoints(this._vrm.scene);
-        this._s.add(this._vrm.scene);
-        this._vrm.scene.position.set(0, -0.05, 0);
-        if (this._vrm.lookAt) {
-          this._vrm.lookAt.target = new THREE.Object3D();
-          this._vrm.lookAt.target.position.set(0, 1.5, 10);
+      // Find bones by name
+      const boneMap = {};
+      model.traverse(n => {
+        if (n.isBone && n.name) boneMap[n.name] = n;
+      });
+
+      console.log('[avatar] bones found:', Object.keys(boneMap).filter(k => k.includes('Arm') || k.includes('Elbow')));
+
+      // Pose arms using known bone names
+      const la = boneMap[VRM_BONE_NAMES.leftUpperArm];
+      const ra = boneMap[VRM_BONE_NAMES.rightUpperArm];
+      const le = boneMap[VRM_BONE_NAMES.leftLowerArm];
+      const re = boneMap[VRM_BONE_NAMES.rightLowerArm];
+
+      if (la) { la.rotation.set(-0.2, -0.1, 0.5); console.log('[avatar] posed leftUpperArm'); }
+      if (ra) { ra.rotation.set(-0.2, 0.1, -0.5); console.log('[avatar] posed rightUpperArm'); }
+      if (le) { le.rotation.set(-0.5, 0, 0); console.log('[avatar] posed leftLowerArm'); }
+      if (re) { re.rotation.set(-0.5, 0, 0); console.log('[avatar] posed rightLowerArm'); }
+
+      // Fallback: try generic names
+      if (!la && !ra) {
+        console.log('[avatar] falling back to generic bone search...');
+        model.traverse(n => {
+          if (!n.isBone) return;
+          const nm = n.name.toLowerCase();
+          if (nm.includes('arm') && nm.includes('left') && !nm.includes('twist') && !nm.includes('elbow')) {
+            n.rotation.set(-0.2, -0.1, 0.5);
+          }
+          if (nm.includes('arm') && nm.includes('right') && !nm.includes('twist') && !nm.includes('elbow')) {
+            n.rotation.set(-0.2, 0.1, -0.5);
+          }
+          if ((nm.includes('elbow') || nm.includes('lowerarm')) && nm.includes('left')) {
+            n.rotation.set(-0.5, 0, 0);
+          }
+          if ((nm.includes('elbow') || nm.includes('lowerarm')) && nm.includes('right')) {
+            n.rotation.set(-0.5, 0, 0);
+          }
+        });
+      }
+
+      // Mouth morph targets
+      this._mouth = [];
+      model.traverse(n => {
+        if (n.isMesh && n.morphTargetDictionary && n.morphTargetInfluences) {
+          for (const [name, idx] of Object.entries(n.morphTargetDictionary)) {
+            const lo = name.toLowerCase();
+            if (lo.startsWith('fcl_mth_a') || lo.includes('aa')) {
+              this._mouth.push({ node: n, index: idx, infl: n.morphTargetInfluences });
+            }
+          }
         }
-        console.log('[avatar] VRM in scene ✓');
-      },
-      p => { if (p.total && p.loaded) console.log('[avatar]', Math.round(p.loaded/p.total*100)+'%'); },
-      e => console.error('[avatar] load error:', e)
-    );
+      });
+      console.log('[avatar] mouth targets:', this._mouth.length);
+
+      this._s.add(model);
+    }, p => {
+      if (p.total) console.log('[avatar]', Math.round(p.loaded / p.total * 100) + '%');
+    }, e => console.error('[avatar] err:', e));
 
     this._loop();
     addEventListener('resize', () => this._rs());
@@ -63,26 +109,23 @@ class TeacherAvatar {
 
   _loop() {
     requestAnimationFrame(() => this._loop());
-    if (this._vrm) {
-      this._vrm.update(0.016);
-      if (this._isTalking && this._vrm.expressionController) {
-        const t = performance.now() * 0.001;
-        const v = 0.3 + Math.sin(t*8)*0.3 + Math.sin(t*13)*0.2;
-        this._vrm.expressionController.setValue('aa', Math.max(0, v));
-        this._vrm.expressionController.setValue('ih', Math.max(0, v*0.5));
-      } else if (this._vrm.expressionController) {
-        this._vrm.expressionController.setValue('aa', 0);
-        this._vrm.expressionController.setValue('ih', 0);
-      }
-    }
     this._r.render(this._s, this._cam);
+    if (this._mouth?.length && this._isTalking) {
+      const t = performance.now() * 0.001;
+      const v = 0.3 + Math.sin(t * 8) * 0.3 + Math.sin(t * 13) * 0.2;
+      const val = Math.max(0, Math.min(1, v));
+      for (const m of this._mouth) m.infl[m.index] = val;
+    } else if (this._mouth) {
+      for (const m of this._mouth) m.infl[m.index] = 0;
+    }
   }
 
   startTalking() { this._isTalking = true; }
   stopTalking() { this._isTalking = false; }
   toggle() { this._c.style.display = this._c.style.display === 'none' ? 'block' : 'none'; }
   _rs() {
-    const w = this._c.clientWidth || 280, h = this._c.clientHeight || 500;
+    const w = this._c.clientWidth || 280;
+    const h = this._c.clientHeight || 500;
     this._r.setSize(w, h);
     this._cam.aspect = w / h;
     this._cam.updateProjectionMatrix();
@@ -100,8 +143,3 @@ function getAvatar() {
   return _inst;
 }
 window.ScholarAvatar = { getAvatar };
-
-} catch(e) {
-  console.error('[avatar] FATAL:', e);
-  window.ScholarAvatar = { getAvatar: () => null };
-}
