@@ -20,32 +20,25 @@ class TeacherAvatar {
 
     new GLTFLoader().load('1347496417698417678.vrm',gltf=>{
       const m=gltf.scene;
-      m.position.set(0,-0.5,0); m.scale.set(0.7,0.7,0.7);
-      m.rotation.y = Math.PI;
+      m.position.set(0,-0.1,0); m.scale.set(0.7,0.7,0.7);
+      m.rotation.y=Math.PI;
 
-      // POSE: Rotate Upper Arms + Twists down
+      const qL=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),0.6);
+      const qR=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-0.6);
+      const qElbow=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-0.5);
+
       m.traverse(n=>{
         if(!n.isBone)return;
         const nm=n.name;
-        // LEFT ARM CHAIN: LeftArm + LeftArmTwist* → rotate Z to bring arm down
-        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Elbow')){
-          n.rotation.z=0.5; n.rotation.x=-0.15;
+        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Elbow')&&!nm.includes('Shoulder')){
+          n.quaternion.multiply(qL); n.updateMatrixWorld();
         }
-        // RIGHT ARM CHAIN: RightArm + RightArmTwist* → rotate Z
-        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Elbow')){
-          n.rotation.z=-0.5; n.rotation.x=-0.15;
+        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Elbow')&&!nm.includes('Shoulder')){
+          n.quaternion.multiply(qR); n.updateMatrixWorld();
         }
-        // ELBOWS
         if(nm.includes('Elbow')){
-          if(nm.includes('Left'))n.rotation.set(-0.6,0,0);
-          if(nm.includes('Right'))n.rotation.set(-0.6,0,0);
+          n.quaternion.multiply(qElbow); n.updateMatrixWorld();
         }
-        // SHOULDERS
-        if(nm.includes('Shoulder')){
-          if(nm.includes('Left'))n.rotation.z=0.3;
-          if(nm.includes('Right'))n.rotation.z=-0.3;
-        }
-        // MOUTH MORPHS
         if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){
           const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences});
         }
