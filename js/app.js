@@ -6,6 +6,7 @@ import { PDFViewer } from './pdf-viewer.js';
 import { AIEngine } from './ai-engine.js';
 import { TTSEngine } from './tts-engine.js';
 import { ChatManager } from './chat.js';
+import { getAvatar } from './avatar.js';
 
 class App {
   constructor() {
@@ -847,6 +848,7 @@ class App {
       this._updateSeekSlider(true);
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
+      getAvatar()?.startTalking();
     };
 
     this.ttsEngine.onEnd = () => {
@@ -856,16 +858,19 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
+      getAvatar()?.stopTalking();
     };
 
     this.ttsEngine.onPause = () => {
       this._updateVoiceStatus('paused', 'Đã tạm dừng');
       this._updatePlayPauseBtn(false);
+      getAvatar()?.stopTalking();
     };
 
     this.ttsEngine.onResume = () => {
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
+      getAvatar()?.startTalking();
     };
 
     this.ttsEngine.onError = (err) => {

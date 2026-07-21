@@ -526,6 +526,46 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
   .teach-btn { padding:8px 20px; font-size:0.85rem; }
   .voice-btn { width:32px; height:32px; font-size:0.8rem; }
   .hero-title { font-size:2rem; }
-  .hero-icon { font-size:3.5rem; }
-  .steps-grid { grid-template-columns:1fr; }
-}
+   .hero-icon { font-size:3.5rem; }
+   .steps-grid { grid-template-columns:1fr; }
+ }
+
+ /* ============================================================
+    Avatar 3D Teacher
+    ============================================================ */
+ #avatar-container {
+   position:relative;
+   width:100%;
+   max-width:420px;
+   margin:0 auto 8px;
+   background:rgba(255,255,255,0.03);
+   border-radius:16px;
+   overflow:hidden;
+   border:1px solid rgba(255,255,255,0.06);
+ }
+ #avatar-canvas {
+   display:block;
+   width:100%;
+   height:auto;
+   min-height:300px;
+ }
+ #avatar-toggle {
+   position:absolute;
+   top:8px; right:8px;
+   width:34px; height:34px;
+   border-radius:50%;
+   border:1px solid rgba(255,255,255,0.12);
+   background:rgba(0,0,0,0.4);
+   color:#fff;
+   font-size:1rem;
+   cursor:pointer;
+   display:flex;
+   align-items:center;
+   justify-content:center;
+   transition:all 0.2s;
+   z-index:2;
+ }
+ #avatar-toggle:hover {
+   background:rgba(255,255,255,0.15);
+   border-color:rgba(255,255,255,0.25);
+ }
