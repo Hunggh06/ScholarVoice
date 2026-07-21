@@ -353,7 +353,6 @@ class App {
     document.getElementById('ollama-url').value = s.ollamaUrl;
     document.getElementById('ollama-vision').checked = s.ollamaVision;
     document.getElementById('deepseek-model').value = s.deepseekModel || 'deepseek-chat';
-    document.getElementById('deepseek-url').value = s.deepseekUrl || 'http://localhost:8000';
 
     this._toggleProviderUI(s.provider);
   }
@@ -413,7 +412,6 @@ class App {
         ollamaUrl: document.getElementById('ollama-url').value,
         ollamaVision: document.getElementById('ollama-vision').checked,
         deepseekModel: document.getElementById('deepseek-model').value,
-        deepseekUrl: document.getElementById('deepseek-url').value,
       });
       this.aiEngine.clearCache();
 

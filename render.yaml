@@ -1,5 +1,5 @@
 # Render deployment config for ScholarVoice
-# Free Web Service tier.
+# Free Web Service tier with DeepSeek free API integration.
 # Docs: https://render.com/docs/deploy-python
 
 services:
@@ -7,11 +7,15 @@ services:
     name: scholarvoice
     runtime: python
     plan: free
-    # Render injects $PORT; server.py reads it from the environment.
-    # Build: no install step needed beyond pip install -r requirements.txt (empty deps).
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python server.py"
     healthCheckPath: "/"
     envVars:
       - key: PYTHON_VERSION
         value: "3.10"
+      # DeepSeek session — paste session.json content.
+      # Get it by running locally: python -m deepseek.auth
+      # Then copy the content of session/session.json here.
+      # Session auto-refreshes ~6h if Chromium profile present.
+      - key: DEEPSEEK_SESSION
+        sync: false

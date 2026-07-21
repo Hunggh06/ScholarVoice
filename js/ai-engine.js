@@ -26,7 +26,6 @@ export class AIEngine {
     this.nvidiaBaseUrl = 'https://integrate.api.nvidia.com/v1';
 
     this.deepseekModel = saved.deepseekModel || 'deepseek-chat';
-    this.deepseekUrl = saved.deepseekUrl || 'http://localhost:18000';
 
     this._abortController = null;
     this.pageCache = new Map();
@@ -55,7 +54,6 @@ export class AIEngine {
     if (settings.nvidiaModel !== undefined) this.nvidiaModel = settings.nvidiaModel.trim();
     if (settings.nvidiaVision !== undefined) this.nvidiaVision = settings.nvidiaVision;
     if (settings.deepseekModel !== undefined) this.deepseekModel = settings.deepseekModel;
-    if (settings.deepseekUrl !== undefined) this.deepseekUrl = settings.deepseekUrl;
     if (settings.teachingStyle !== undefined) this.teachingStyle = settings.teachingStyle;
     if (settings.customStyle !== undefined) this.customStyle = settings.customStyle;
 
@@ -70,11 +68,9 @@ export class AIEngine {
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
       deepseekModel: this.deepseekModel,
-      deepseekUrl: this.deepseekUrl,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
     }));
-
     // Chỉ xoá cache nếu đổi provider hoặc đổi style
     if (oldProvider !== this.provider) {
       this.pageCache.clear();
@@ -95,7 +91,6 @@ export class AIEngine {
       nvidiaModel: this.nvidiaModel,
       nvidiaVision: this.nvidiaVision,
       deepseekModel: this.deepseekModel,
-      deepseekUrl: this.deepseekUrl,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
     };
@@ -112,7 +107,7 @@ export class AIEngine {
   get isConfigured() {
     if (this.provider === 'gemini') return this.apiKey.length > 0;
     if (this.provider === 'nvidia') return this.nvidiaKey.length > 0;
-    if (this.provider === 'deepseek') return this.deepseekUrl.length > 0;
+    if (this.provider === 'deepseek') return true;
     return this.ollamaUrl.length > 0 && this.ollamaModel.length > 0;
   }
 
@@ -538,7 +533,6 @@ Trả lời bằng JSON với 2 trường:
     }
 
     const body = {
-      _target_url: this.deepseekUrl,
       model: this.deepseekModel,
       messages: [
         { role: 'system', content: systemPrompt },

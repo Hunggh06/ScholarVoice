@@ -6,3 +6,4 @@ tts_cache/
 .opencode/
 .env
 Recording*.mp4
+session/
