@@ -1,124 +1,120 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const AVATAR_URL = '1347496417698417678.vrm';
-
 class TeacherAvatar {
   constructor(container) {
-    this._container = container;
-    this._canvas = document.getElementById('avatar-canvas');
-    this._scene = new THREE.Scene();
+    this._c = container;
+    this._cv = document.getElementById('avatar-canvas');
+    this._s = new THREE.Scene();
     this._isTalking = false;
-    this._visible = true;
-    this._model = null;
     this._mouthTargets = [];
     this._init();
   }
 
   _init() {
-    const w = this._container.clientWidth || window.innerWidth / 2;
-    const h = this._container.clientHeight || window.innerHeight - 60;
+    const w = this._c.clientWidth || 400;
+    const h = this._c.clientHeight || 500;
+    this._r = new THREE.WebGLRenderer({ canvas: this._cv, alpha: true, antialias: true });
+    this._r.setSize(w, h);
+    this._r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this._r.outputColorSpace = THREE.SRGBColorSpace;
+    this._r.setClearColor(0, 0);
 
-    this._renderer = new THREE.WebGLRenderer({ canvas: this._canvas, alpha: true, antialias: true });
-    this._renderer.setSize(w, h);
-    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this._renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this._renderer.setClearColor(0x000000, 0);
+    this._cam = new THREE.PerspectiveCamera(25, w / h, 0.1, 50);
+    this._cam.position.set(0, 1.3, 4.5);
+    this._cam.lookAt(0, 0.9, 0);
 
-    this._camera = new THREE.PerspectiveCamera(20, w / h, 0.1, 50);
-    this._camera.position.set(0, 1.5, 5);
-    this._camera.lookAt(0, 0.9, 0);
+    // Debug: add a visible ground plane + test cube
+    const g = new THREE.PlaneGeometry(20, 20);
+    const gm = new THREE.MeshBasicMaterial({ color: 0x336699, side: THREE.DoubleSide, transparent: true, opacity: 0.2 });
+    const ground = new THREE.Mesh(g, gm);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = -2;
+    this._s.add(ground);
 
-    this._scene.add(new THREE.AmbientLight(0xffffff, 2));
-    const key = new THREE.DirectionalLight(0xffffff, 4);
-    key.position.set(1, 3, 3);
-    this._scene.add(key);
-    const fill = new THREE.DirectionalLight(0xccddff, 2);
-    fill.position.set(-1, 1.5, -1);
-    this._scene.add(fill);
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial({ color: 0xff4444 })
+    );
+    box.position.set(0, 1, 0);
+    this._s.add(box);
+    this._testBox = box;
+
+    this._s.add(new THREE.AmbientLight(0xffffff, 2));
+    const dl = new THREE.DirectionalLight(0xffffff, 4);
+    dl.position.set(1, 3, 3);
+    this._s.add(dl);
 
     const loader = new GLTFLoader();
-    loader.load(AVATAR_URL, (gltf) => {
-      this._model = gltf.scene;
-      this._model.position.set(0, -0.7, 0);
-      this._model.scale.set(1.15, 1.15, 1.15);
-      this._model.traverse((node) => {
-        if (node.isMesh && node.morphTargetDictionary && node.morphTargetInfluences) {
-          for (const [name, idx] of Object.entries(node.morphTargetDictionary)) {
-            const lo = name.toLowerCase();
-            if (lo.includes('mouth') || lo.includes('aa') || lo.includes('jaw') ||
-                lo.includes('open') || lo.includes('fcl') || lo.includes('a')) {
-              this._mouthTargets.push({ node, index: idx, influences: node.morphTargetInfluences });
-            }
-          }
+    loader.load('1347496417698417678.vrm', gltf => {
+      if (this._testBox) { this._s.remove(this._testBox); this._testBox = null; }
+      const m = gltf.scene;
+      m.position.set(0, -0.8, 0);
+      m.scale.set(1.2, 1.2, 1.2);
+      m.traverse(n => {
+        if (n.isBone) {
+          if (n.name === 'joint_LeftArm') { n.rotation.z = 0.45; n.rotation.x = -0.2; }
+          if (n.name === 'joint_RightArm') { n.rotation.z = -0.45; n.rotation.x = -0.2; }
+          if (n.name === 'joint_LeftElbow') n.rotation.x = -0.6;
+          if (n.name === 'joint_RightElbow') n.rotation.x = -0.6;
         }
-        if (node.isBone) {
-          // VRM humanoid bones: joint_LeftArm, joint_RightArm, joint_LeftElbow, joint_RightElbow, etc.
-          const n = node.name;
-          if (n === 'joint_LeftArm') { node.rotation.z = 0.45; node.rotation.x = -0.2; }
-          if (n === 'joint_RightArm') { node.rotation.z = -0.45; node.rotation.x = -0.2; }
-          if (n === 'joint_LeftElbow') { node.rotation.x = -0.6; }
-          if (n === 'joint_RightElbow') { node.rotation.x = -0.6; }
-          // Also try generic patterns for other VRM models
-          const lo = n.toLowerCase();
-          if (lo.includes('left') && lo.includes('arm') && !lo.includes('twist') && !lo.includes('elbow') && !lo.includes('wrist')) {
-            if (!node.rotation.z) { node.rotation.z = 0.45; node.rotation.x = -0.2; }
-          }
-          if (lo.includes('right') && lo.includes('arm') && !lo.includes('twist') && !lo.includes('elbow') && !lo.includes('wrist')) {
-            if (!node.rotation.z) { node.rotation.z = -0.45; node.rotation.x = -0.2; }
-          }
-          if ((lo.includes('elbow') || lo.includes('lowerarm') || lo.includes('forearm')) && lo.includes('arm')) {
-            if (lo.includes('left')) node.rotation.x = -0.6;
-            if (lo.includes('right')) node.rotation.x = -0.6;
+        if (n.isMesh && n.morphTargetDictionary && n.morphTargetInfluences) {
+          for (const [name, idx] of Object.entries(n.morphTargetDictionary)) {
+            if (name.toLowerCase().includes('aa') || name.toLowerCase().includes('mouth') || name.toLowerCase().includes('jaw'))
+              this._mouthTargets.push({ node: n, index: idx, infl: n.morphTargetInfluences });
           }
         }
       });
-      this._scene.add(this._model);
-      console.log('[avatar] ready, mouth:', this._mouthTargets.length);
-    }, undefined, () => {});
+      this._s.add(m);
+      this._model = m;
+      console.log('[avatar] VRM loaded, mouth:', this._mouthTargets.length);
+    }, p => {
+      if (p.total) console.log('[avatar] loading:', Math.round(p.loaded/p.total*100)+'%');
+    }, e => console.warn('[avatar] load err:', e.message));
 
-    this._animate();
-    window.addEventListener('resize', () => this._onResize());
+    this._loop();
+    addEventListener('resize', () => this._rs());
   }
 
-  _animate() {
-    requestAnimationFrame(() => this._animate());
-    this._renderer.render(this._scene, this._camera);
+  _loop() {
+    requestAnimationFrame(() => this._loop());
+    if (this._testBox) { this._testBox.rotation.y += 0.02; this._testBox.rotation.x += 0.01; }
+    this._r.render(this._s, this._cam);
     if (this._isTalking) {
       const t = performance.now() * 0.001;
-      const v = 0.2 + Math.sin(t * 8) * 0.3 + Math.sin(t * 13) * 0.2 + Math.sin(t * 17) * 0.2;
+      const v = 0.2 + Math.sin(t*8)*0.3 + Math.sin(t*13)*0.2 + Math.sin(t*17)*0.2;
       const val = Math.max(0, Math.min(1, v));
-      for (const mt of this._mouthTargets) mt.influences[mt.index] = val;
+      this._mouthTargets.forEach(mt => { mt.infl[mt.index] = val; });
     } else {
-      for (const mt of this._mouthTargets) mt.influences[mt.index] = 0;
+      this._mouthTargets.forEach(mt => { mt.infl[mt.index] = 0; });
     }
   }
 
   startTalking() { this._isTalking = true; }
   stopTalking() { this._isTalking = false; }
+
   toggle() {
-    this._visible = !this._visible;
-    this._container.style.display = this._visible ? 'block' : 'none';
+    this._c.style.display = this._c.style.display === 'none' ? 'block' : 'none';
   }
-  _onResize() {
-    const w = this._container.clientWidth || window.innerWidth / 2;
-    const h = this._container.clientHeight || window.innerHeight - 60;
-    if (w && h) {
-      this._renderer.setSize(w, h);
-      this._camera.aspect = w / h;
-      this._camera.updateProjectionMatrix();
-    }
+
+  _rs() {
+    const w = this._c.clientWidth || 400;
+    const h = this._c.clientHeight || 500;
+    this._r.setSize(w, h);
+    this._cam.aspect = w / h;
+    this._cam.updateProjectionMatrix();
   }
 }
 
-let _instance = null;
+let _inst;
 function getAvatar() {
-  if (!_instance) {
+  if (!_inst) {
     const c = document.getElementById('avatar-box');
-    if (!c) return null;
-    _instance = new TeacherAvatar(c);
-    document.getElementById('avatar-toggle')?.addEventListener('click', () => _instance.toggle());
+    if (!c) { console.warn('[avatar] #avatar-box not found'); return null; }
+    _inst = new TeacherAvatar(c);
+    document.getElementById('avatar-toggle')?.addEventListener('click', () => _inst.toggle());
+    console.log('[avatar] init, size:', c.clientWidth, 'x', c.clientHeight);
   }
-  return _instance;
+  return _inst;
 }
 window.ScholarAvatar = { getAvatar };
