@@ -20,45 +20,39 @@ class TeacherAvatar {
 
     new GLTFLoader().load('1347496417698417678.vrm',gltf=>{
       const m=gltf.scene;
-      m.position.set(0,-0.5,0);
-      m.scale.set(0.7,0.7,0.7);
+      m.position.set(0,-0.5,0); m.scale.set(0.7,0.7,0.7);
+      m.rotation.y = Math.PI;
 
-      // Log all bone names for debugging
-      const allBones=[];
-      m.traverse(n=>{if(n.isBone&&n.name.includes('Arm'))allBones.push(n.name)});
-      console.log('[avatar] arm bones:',allBones);
-
-      // Set rotation on EVERY arm bone to create natural pose
+      // POSE: Rotate Upper Arms + Twists down
       m.traverse(n=>{
         if(!n.isBone)return;
         const nm=n.name;
-
-        // Right side (character's right = our left when facing us)
-        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Twist')){
-          if(nm.includes('Shoulder')){n.rotation.set(0,0,-0.5)}
-          else{n.rotation.set(-0.3,0,-0.4)}
+        // LEFT ARM CHAIN: LeftArm + LeftArmTwist* → rotate Z to bring arm down
+        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Elbow')){
+          n.rotation.z=0.5; n.rotation.x=-0.15;
         }
-        if(nm.includes('Right')&&nm.includes('Elbow')){
-          n.rotation.set(-0.6,0,0);
+        // RIGHT ARM CHAIN: RightArm + RightArmTwist* → rotate Z
+        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Elbow')){
+          n.rotation.z=-0.5; n.rotation.x=-0.15;
         }
-
-        // Left side
-        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Twist')){
-          if(nm.includes('Shoulder')){n.rotation.set(0,0,0.5)}
-          else{n.rotation.set(-0.3,0,0.4)}
+        // ELBOWS
+        if(nm.includes('Elbow')){
+          if(nm.includes('Left'))n.rotation.set(-0.6,0,0);
+          if(nm.includes('Right'))n.rotation.set(-0.6,0,0);
         }
-        if(nm.includes('Left')&&nm.includes('Elbow')){
-          n.rotation.set(-0.6,0,0);
+        // SHOULDERS
+        if(nm.includes('Shoulder')){
+          if(nm.includes('Left'))n.rotation.z=0.3;
+          if(nm.includes('Right'))n.rotation.z=-0.3;
+        }
+        // MOUTH MORPHS
+        if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){
+          const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences});
         }
       });
-
-      // Mouth
-      m.traverse(n=>{if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences})}});
       console.log('[avatar] mouth:',this._mouth.length);
-
       this._s.add(m);
     },p=>{if(p.total)console.log('[avatar]',Math.round(p.loaded/p.total*100)+'%')},e=>console.error('[avatar]',e));
-
     this._loop(); addEventListener('resize',()=>this._rs());
   }
   _loop(){
