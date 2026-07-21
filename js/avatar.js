@@ -4,8 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 class TeacherAvatar {
   constructor(c) {
     this._c=c; this._cv=document.getElementById('avatar-canvas');
-    this._s=new THREE.Scene(); this._isTalking=false; this._mouth=[];
-    this._init();
+    this._s=new THREE.Scene(); this._isTalking=false; this._mouth=[]; this._init();
   }
   _init(){
     const w=this._c.clientWidth||280, h=this._c.clientHeight||500;
@@ -20,24 +19,18 @@ class TeacherAvatar {
     new GLTFLoader().load('1347496417698417678.vrm',gltf=>{
       const m=gltf.scene; m.position.set(0,-0.7,0); m.scale.set(1.2,1.2,1.2); m.rotation.y=Math.PI;
 
-      // DUMP ALL NODE NAMES (first 50)
-      const all=[]; m.traverse(n=>{if(n.name)all.push(n.name+(n.isBone?'[B]':n.isMesh?'[M]':''))});
-      console.log('[avatar] ALL nodes:',all.slice(0,50),'... total='+all.length);
+      const findBone = (suffix) => { let r=null; m.traverse(n=>{if(n.isBone&&n.name&&n.name.endsWith(suffix))r=n}); return r; };
+      const la=findBone('joint_LeftArm');
+      const ra=findBone('joint_RightArm');
+      const le=findBone('joint_LeftElbow');
+      const re=findBone('joint_RightElbow');
+      console.log('[avatar] bones found:',!!la,!!ra,!!le,!!re);
 
-      // Find arm bones
-      const leftArm=m.getObjectByName('joint_LeftArm');
-      const rightArm=m.getObjectByName('joint_RightArm');
-      const leftElbow=m.getObjectByName('joint_LeftElbow');
-      const rightElbow=m.getObjectByName('joint_RightElbow');
-      console.log('[avatar] getObjectByName:',!!leftArm,!!rightArm,!!leftElbow,!!rightElbow);
+      if(la)la.rotation.set(-0.2,0,0.5);
+      if(ra)ra.rotation.set(-0.2,0,-0.5);
+      if(le)le.rotation.set(-0.5,0,0);
+      if(re)re.rotation.set(-0.5,0,0);
 
-      // Pose
-      if(leftArm)leftArm.rotation.set(-0.2,0,0.5);
-      if(rightArm)rightArm.rotation.set(-0.2,0,-0.5);
-      if(leftElbow)leftElbow.rotation.set(-0.5,0,0);
-      if(rightElbow)rightElbow.rotation.set(-0.5,0,0);
-
-      // Mouth
       m.traverse(n=>{if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences})}});
       console.log('[avatar] mouth:',this._mouth.length);
 
