@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 
 class TeacherAvatar {
   constructor(c) {
     this._c=c; this._cv=document.getElementById('avatar-canvas');
-    this._s=new THREE.Scene(); this._vrm=null; this._isTalking=false;
+    this._s=new THREE.Scene(); this._isTalking=false; this._mouth=[];
     this._init();
   }
   _init(){
@@ -19,37 +18,52 @@ class TeacherAvatar {
     const dl=new THREE.DirectionalLight(0xffffff,5);
     dl.position.set(1,4,3); this._s.add(dl);
 
-    const loader=new GLTFLoader();
-    loader.register(parser=>new VRMLoaderPlugin(parser));
+    new GLTFLoader().load('1347496417698417678.vrm',gltf=>{
+      const m=gltf.scene;
+      m.position.set(0,-0.5,0);
+      m.scale.set(0.7,0.7,0.7);
 
-    loader.load('1347496417698417678.vrm',
-      gltf=>{
-        this._vrm=gltf.userData.vrm;
-        console.log('[avatar] VRM loaded, meta:',this._vrm?.meta?.title);
-        if(this._vrm){
-          this._vrm.scene.position.set(0,-0.5,0);
-          this._vrm.scene.scale.set(0.8,0.8,0.8);
-          this._s.add(this._vrm.scene);
+      // Log all bone names for debugging
+      const allBones=[];
+      m.traverse(n=>{if(n.isBone&&n.name.includes('Arm'))allBones.push(n.name)});
+      console.log('[avatar] arm bones:',allBones);
+
+      // Set rotation on EVERY arm bone to create natural pose
+      m.traverse(n=>{
+        if(!n.isBone)return;
+        const nm=n.name;
+
+        // Right side (character's right = our left when facing us)
+        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Twist')){
+          if(nm.includes('Shoulder')){n.rotation.set(0,0,-0.5)}
+          else{n.rotation.set(-0.3,0,-0.4)}
         }
-      },
-      p=>{if(p.total)console.log('[avatar]',Math.round(p.loaded/p.total*100)+'%')},
-      e=>console.error('[avatar]',e)
-    );
+        if(nm.includes('Right')&&nm.includes('Elbow')){
+          n.rotation.set(-0.6,0,0);
+        }
+
+        // Left side
+        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Twist')){
+          if(nm.includes('Shoulder')){n.rotation.set(0,0,0.5)}
+          else{n.rotation.set(-0.3,0,0.4)}
+        }
+        if(nm.includes('Left')&&nm.includes('Elbow')){
+          n.rotation.set(-0.6,0,0);
+        }
+      });
+
+      // Mouth
+      m.traverse(n=>{if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences})}});
+      console.log('[avatar] mouth:',this._mouth.length);
+
+      this._s.add(m);
+    },p=>{if(p.total)console.log('[avatar]',Math.round(p.loaded/p.total*100)+'%')},e=>console.error('[avatar]',e));
 
     this._loop(); addEventListener('resize',()=>this._rs());
   }
   _loop(){
     requestAnimationFrame(()=>this._loop());
-    if(this._vrm){ this._vrm.update(0.016);
-      if(this._isTalking&&this._vrm.expressionController){
-        const t=performance.now()*0.001,v=0.3+Math.sin(t*8)*0.3+Math.sin(t*13)*0.2;
-        this._vrm.expressionController.setValue('aa',Math.max(0,v));
-        this._vrm.expressionController.setValue('ih',Math.max(0,v*0.5));
-      } else if(this._vrm.expressionController){
-        this._vrm.expressionController.setValue('aa',0);
-        this._vrm.expressionController.setValue('ih',0);
-      }
-    }
+    if(this._mouth.length&&this._isTalking){const t=performance.now()*0.001,v=0.3+Math.sin(t*8)*0.3+Math.sin(t*13)*0.2,val=Math.max(0,Math.min(1,v));for(const m of this._mouth)m.infl[m.index]=val}else if(this._mouth.length)for(const m of this._mouth)m.infl[m.index]=0;
     this._r.render(this._s,this._cam);
   }
   startTalking(){this._isTalking=true} stopTalking(){this._isTalking=false}
