@@ -23,27 +23,31 @@ class TeacherAvatar {
       m.position.set(0,-0.1,0); m.scale.set(0.7,0.7,0.7);
       m.rotation.y=Math.PI;
 
-      const qL=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),0.6);
-      const qR=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-0.6);
-      const qElbow=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-0.5);
+      // Find skeleton from first skinned mesh
+      let skeleton=null;
+      m.traverse(n=>{if(!skeleton&&n.isSkinnedMesh&&n.skeleton)skeleton=n.skeleton});
+
+      // Pose bones
+      const q = (axis, angle) => new THREE.Quaternion().setFromAxisAngle(axis, angle);
+      const axisZ = new THREE.Vector3(0,0,1);
+      const axisX = new THREE.Vector3(1,0,0);
 
       m.traverse(n=>{
         if(!n.isBone)return;
         const nm=n.name;
-        if(nm.includes('Left')&&nm.includes('Arm')&&!nm.includes('Elbow')&&!nm.includes('Shoulder')){
-          n.quaternion.multiply(qL); n.updateMatrixWorld();
+        if(nm.includes('Left')&&(nm.includes('Arm')||nm.includes('Elbow'))&&!nm.includes('Shoulder')&&!nm.includes('Twist')){
+          nm.includes('Elbow') ? n.quaternion.premultiply(q(axisX,-0.5)) : n.quaternion.premultiply(q(axisZ,0.6));
         }
-        if(nm.includes('Right')&&nm.includes('Arm')&&!nm.includes('Elbow')&&!nm.includes('Shoulder')){
-          n.quaternion.multiply(qR); n.updateMatrixWorld();
-        }
-        if(nm.includes('Elbow')){
-          n.quaternion.multiply(qElbow); n.updateMatrixWorld();
-        }
-        if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){
-          const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences});
+        if(nm.includes('Right')&&(nm.includes('Arm')||nm.includes('Elbow'))&&!nm.includes('Shoulder')&&!nm.includes('Twist')){
+          nm.includes('Elbow') ? n.quaternion.premultiply(q(axisX,-0.5)) : n.quaternion.premultiply(q(axisZ,-0.6));
         }
       });
-      console.log('[avatar] mouth:',this._mouth.length);
+
+      // Force skeleton update
+      if(skeleton){ skeleton.computeBoneMatrices(); skeleton.update(); }
+
+      m.traverse(n=>{if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences})}});
+      console.log('[avatar] mouth:',this._mouth.length, 'skeleton:',!!skeleton);
       this._s.add(m);
     },p=>{if(p.total)console.log('[avatar]',Math.round(p.loaded/p.total*100)+'%')},e=>console.error('[avatar]',e));
     this._loop(); addEventListener('resize',()=>this._rs());
