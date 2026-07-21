@@ -10,10 +10,8 @@ class TeacherAvatar {
     this._scene = new THREE.Scene();
     this._isTalking = false;
     this._visible = true;
-    this._clock = new THREE.Clock();
     this._model = null;
     this._mouthTargets = [];
-
     this._init();
   }
 
@@ -42,7 +40,6 @@ class TeacherAvatar {
     loader.load(AVATAR_URL, (gltf) => {
       this._model = gltf.scene;
       this._model.position.set(0, -1.3, 0);
-
       this._model.traverse((node) => {
         if (node.isMesh) {
           node.castShadow = true;
@@ -68,10 +65,9 @@ class TeacherAvatar {
           }
         }
       });
-
       this._scene.add(this._model);
-      console.log('[avatar] loaded, mouth targets:', this._mouthTargets.length);
-    }, undefined, (err) => console.warn('[avatar] load err:', err.message));
+      console.log('[avatar] loaded, mouth:', this._mouthTargets.length);
+    }, undefined, () => {});
 
     this._animate();
     window.addEventListener('resize', () => this._onResize());
@@ -80,18 +76,13 @@ class TeacherAvatar {
   _animate() {
     requestAnimationFrame(() => this._animate());
     this._renderer.render(this._scene, this._camera);
-
     if (this._isTalking) {
       const t = performance.now() * 0.001;
       const v = 0.3 + Math.sin(t * 8) * 0.3 + Math.sin(t * 13) * 0.2 + Math.sin(t * 17) * 0.2;
       const val = Math.max(0, Math.min(1, v));
-      for (const mt of this._mouthTargets) {
-        mt.influences[mt.index] = val;
-      }
+      for (const mt of this._mouthTargets) mt.influences[mt.index] = val;
     } else {
-      for (const mt of this._mouthTargets) {
-        mt.influences[mt.index] = 0;
-      }
+      for (const mt of this._mouthTargets) mt.influences[mt.index] = 0;
     }
   }
 
@@ -106,15 +97,17 @@ class TeacherAvatar {
   _onResize() {
     const w = this._container.clientWidth;
     const h = this._container.clientHeight;
-    this._renderer.setSize(w, h);
-    this._camera.aspect = w / h;
-    this._camera.updateProjectionMatrix();
+    if (w && h) {
+      this._renderer.setSize(w, h);
+      this._camera.aspect = w / h;
+      this._camera.updateProjectionMatrix();
+    }
   }
 }
 
 let _instance = null;
 
-export function getAvatar() {
+function getAvatar() {
   if (!_instance) {
     const c = document.getElementById('avatar-float');
     if (!c) return null;
@@ -123,3 +116,5 @@ export function getAvatar() {
   }
   return _instance;
 }
+
+window.ScholarAvatar = { getAvatar };
