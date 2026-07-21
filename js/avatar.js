@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const AVATAR_URL = 'https://raw.githubusercontent.com/hirokazuniimoto/virtual-avatar-sdk/main/assets/avatars/AvatarSample_A.vrm';
+const AVATAR_URL = '1347496417698417678.vrm';
 
 class TeacherAvatar {
   constructor(container) {
