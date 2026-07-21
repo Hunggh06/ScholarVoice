@@ -1,48 +1,18 @@
-/**
- * TTSEngine - Sinh giong tu nhien qua Google Cloud Text-to-Speech (server proxy /api/tts).
- * Key nam tren server (env GOOGLE_TTS_KEY), khong lo len trinh duyet.
- * Giu nguyen interface cu de app.js khong can sua.
- */
-
-// name = dinh danh luu vao localStorage (tuong thich app.js); id = ma giong goi server
-const GOOGLE_VOICES = [
-  { name: 'Việt Nam - Wavenet A (Nữ)', id: 'vi-VN-Wavenet-A', lang: 'vi-VN' },
-  { name: 'Việt Nam - Wavenet B (Nam)', id: 'vi-VN-Wavenet-B', lang: 'vi-VN' },
-  { name: 'Việt Nam - Neural2 A (Nữ)', id: 'vi-VN-Neural2-A', lang: 'vi-VN' },
-  { name: 'Việt Nam - Neural2 B (Nam)', id: 'vi-VN-Neural2-B', lang: 'vi-VN' },
-  { name: 'US - Wavenet C (Nữ)', id: 'en-US-Wavenet-C', lang: 'en-US' },
-  { name: 'US - Neural2 F (Nữ)', id: 'en-US-Neural2-F', lang: 'en-US' },
-  { name: 'Japan - Wavenet A (Nữ)', id: 'ja-JP-Wavenet-A', lang: 'ja-JP' },
-  { name: 'Korea - Wavenet B (Nữ)', id: 'ko-KR-Wavenet-B', lang: 'ko-KR' },
-  { name: 'France - Wavenet B (Nữ)', id: 'fr-FR-Wavenet-B', lang: 'fr-FR' },
-  { name: 'Germany - Wavenet B (Nữ)', id: 'de-DE-Wavenet-B', lang: 'de-DE' },
-];
-
-function _resolveVoiceId(nameOrId) {
-  if (!nameOrId) return 'vi-VN-Wavenet-A';
-  const byName = GOOGLE_VOICES.find(v => v.name === nameOrId);
-  if (byName) return byName.id;
-  const byId = GOOGLE_VOICES.find(v => v.id === nameOrId);
-  if (byId) return byId.id;
-  return 'vi-VN-Wavenet-A';
-}
-
 export class TTSEngine {
   constructor() {
-    this._audio = new Audio();
+    this._synth = window.speechSynthesis;
+    this._utterance = null;
     this._isSpeaking = false;
     this._isPaused = false;
-    this._stopRequested = false;
     this._currentText = '';
     this._fullText = '';
     this._progressPct = 0;
-    this._pendingSeek = null;
+    this._progressTimer = null;
+    this._startTime = 0;
+    this._pausedDuration = 0;
+    this._estDuration = 0;
     this._rate = parseFloat(localStorage.getItem('tts_rate') || '1.0');
-    this._voiceId = localStorage.getItem('tts_voice') || 'vi-VN-Wavenet-A';
-
-    // Tuong thich app.js cu
-    this.synth = { addEventListener() {} };
-    this._voiceName = this._voiceId;
+    this._voiceId = localStorage.getItem('tts_voice') || '';
 
     this.onStart = null;
     this.onEnd = null;
@@ -51,50 +21,27 @@ export class TTSEngine {
     this.onError = null;
     this.onProgress = null;
 
-    this._audio.addEventListener('loadedmetadata', () => {
-      if (this._pendingSeek != null) {
-        const pct = this._pendingSeek;
-        this._pendingSeek = null;
-        this.seekTo(pct);
-      }
-    });
-    this._audio.addEventListener('timeupdate', () => {
-      if (this._audio.duration > 0) {
-        const pct = this._audio.currentTime / this._audio.duration;
-        this._progressPct = pct;
-        if (this.onProgress) this.onProgress(pct);
-      }
-    });
-    this._audio.addEventListener('ended', () => {
-      if (this._stopRequested) return;
-      this._isSpeaking = false;
-      this._isPaused = false;
-      this._progressPct = 1;
-      if (this.onProgress) this.onProgress(1);
-      if (this.onEnd) this.onEnd();
-    });
-    this._audio.addEventListener('error', () => {
-      if (this._stopRequested) return;
-      this._isSpeaking = false;
-      if (this.onError) this.onError(new Error('Lỗi phát âm thanh từ server TTS.'));
-    });
+    this.synth = this._synth;
+    this._voiceName = this._voiceId;
   }
 
   getAllVoices() {
-    return GOOGLE_VOICES;
+    return this._synth.getVoices().map(v => ({
+      name: `${v.lang} - ${v.name}`,
+      id: v.voiceURI || v.name,
+      lang: v.lang,
+    }));
   }
 
   getVietnameseVoices() {
-    return GOOGLE_VOICES.filter(v => v.lang.startsWith('vi'));
+    return this.getAllVoices().filter(v => v.lang.startsWith('vi'));
   }
 
   get hasVietnameseVoice() {
     return this.getVietnameseVoices().length > 0;
   }
 
-  get isFallbackVoice() {
-    return false;
-  }
+  get isFallbackVoice() { return false; }
 
   setVoiceByName(name) {
     this._voiceId = name;
@@ -104,102 +51,127 @@ export class TTSEngine {
   }
 
   get voice() {
-    return GOOGLE_VOICES.find(v => v.name === this._voiceId) || GOOGLE_VOICES[0];
+    const voices = this.getAllVoices();
+    return voices.find(v => v.name === this._voiceId) || voices.find(v => v.id === this._voiceId) || voices[0] || { name: 'Default', lang: 'en-US' };
   }
 
-  get totalChunks() {
-    return 1;
-  }
-
-  get progress() {
-    return this._progressPct;
-  }
+  get totalChunks() { return 1; }
+  get progress() { return this._progressPct; }
 
   async speak(text) {
     this.stop();
-    this._stopRequested = false;
     if (!text || !text.trim()) return;
-
     this._currentText = text;
     this._fullText = text;
     this._progressPct = 0;
+    this._synth.cancel();
 
-    if (this.onStart) this.onStart();
+    this._utterance = new SpeechSynthesisUtterance(text);
+    this._utterance.rate = this._rate;
 
-    try {
-      const resp = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: text,
-          voice: _resolveVoiceId(this._voiceId),
-          rate: this._rate,
-        }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err?.error?.message || ('TTS lỗi HTTP ' + resp.status));
-      }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      this._audio.src = url;
+    const voices = this._synth.getVoices();
+    if (this._voiceId) {
+      const v = voices.find(v => v.voiceURI === this._voiceId || v.name === this._voiceId);
+      if (v) this._utterance.voice = v;
+    }
+
+    const charCount = text.length;
+    this._estDuration = Math.max(1, charCount / (12 * this._rate));
+    this._startTime = performance.now();
+    this._pausedDuration = 0;
+
+    this._utterance.onstart = () => {
       this._isSpeaking = true;
       this._isPaused = false;
-      await this._audio.play();
-    } catch (e) {
-      this._isSpeaking = false;
-      if (this.onError) this.onError(e);
-    }
+      if (this.onStart) this.onStart();
+      this._startProgress();
+    };
+    this._utterance.onend = () => {
+      this._cleanup();
+      if (this.onProgress) this.onProgress(1);
+      if (this.onEnd) this.onEnd();
+    };
+    this._utterance.onpause = () => {
+      this._isPaused = true;
+      if (this.onPause) this.onPause();
+    };
+    this._utterance.onresume = () => {
+      this._isPaused = false;
+      if (this.onResume) this.onResume();
+    };
+    this._utterance.onerror = (e) => {
+      if (e.error === 'canceled' || e.error === 'interrupted') {
+        this._cleanup();
+        return;
+      }
+      this._cleanup();
+      if (this.onError) this.onError(new Error('Lỗi giọng đọc: ' + e.error));
+    };
+
+    this._synth.speak(this._utterance);
+  }
+
+  _startProgress() {
+    this._stopProgress();
+    this._progressTimer = setInterval(() => {
+      if (!this._isSpeaking || this._estDuration <= 0) return;
+      const elapsed = (performance.now() - this._startTime - this._pausedDuration) / 1000;
+      const pct = Math.min(elapsed / this._estDuration, 0.99);
+      this._progressPct = pct;
+      if (this.onProgress) this.onProgress(pct);
+    }, 200);
+  }
+
+  _stopProgress() {
+    if (this._progressTimer) { clearInterval(this._progressTimer); this._progressTimer = null; }
+  }
+
+  _cleanup() {
+    this._stopProgress();
+    this._isSpeaking = false;
+    this._isPaused = false;
+    this._utterance = null;
   }
 
   pause() {
     if (this._isSpeaking && !this._isPaused) {
-      this._audio.pause();
-      this._isPaused = true;
-      if (this.onPause) this.onPause();
+      this._synth.pause();
     }
   }
 
   resume() {
     if (this._isPaused) {
-      this._audio.play();
-      this._isPaused = false;
-      if (this.onResume) this.onResume();
+      this._synth.resume();
     }
   }
 
   stop() {
-    this._stopRequested = true;
-    this._audio.pause();
-    this._audio.currentTime = 0;
-    this._isSpeaking = false;
-    this._isPaused = false;
+    this._cleanup();
+    this._synth.cancel();
     this._progressPct = 0;
     if (this.onProgress) this.onProgress(0);
   }
 
   seekTo(pct) {
-    if (!this._audio.duration) return;
-    const t = Math.max(0, Math.min(pct / 100, 1)) * this._audio.duration;
-    this._audio.currentTime = t;
-    this._progressPct = pct / 100;
-    if (this.onProgress) this.onProgress(this._progressPct);
+    // Web Speech API doesn't support seeking — restart from position by skipping text
+    if (!this._fullText) return;
+    const pos = Math.floor((pct / 100) * this._fullText.length);
+    const remaining = this._fullText.slice(pos);
+    if (remaining.trim()) {
+      const wasSpeaking = this._isSpeaking || this._isPaused;
+      this.stop();
+      if (wasSpeaking) this.speak(remaining);
+    }
   }
 
   applyRate(newRate) {
     if (this._rate === newRate) return;
     this._rate = newRate;
     localStorage.setItem('tts_rate', String(newRate));
-    if (this._isSpeaking || this._isPaused) {
-      const curPct = this._progressPct * 100;
-      this.speak(this._fullText);
-      this._pendingSeek = curPct;
-    }
   }
 
   replay() {
-    this.stop();
-    this.speak(this._fullText || this._currentText);
+    if (this._fullText) this.speak(this._fullText);
   }
 
   get isSpeaking() { return this._isSpeaking; }
@@ -207,4 +179,8 @@ export class TTSEngine {
 
   set rate(value) { this.applyRate(value); }
   get rate() { return this._rate; }
+
+  getVoiceById(id) {
+    return this._synth.getVoices().find(v => v.voiceURI === id || v.name === id);
+  }
 }
