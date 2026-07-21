@@ -1,6 +1,10 @@
+try {
+
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+console.log('[avatar] imports OK, THREE:', THREE.REVISION);
 
 class TeacherAvatar {
   constructor(container) {
@@ -30,29 +34,27 @@ class TeacherAvatar {
     const dl = new THREE.DirectionalLight(0xffffff, 4);
     dl.position.set(1, 3, 3);
     this._s.add(dl);
-    const fl = new THREE.DirectionalLight(0xccddff, 2);
-    fl.position.set(-1, 1.5, -1);
-    this._s.add(fl);
 
     const loader = new GLTFLoader();
     loader.register(parser => new VRMLoaderPlugin(parser, { autoUpdateHumanBones: true }));
 
+    console.log('[avatar] loading VRM...');
     loader.load('1347496417698417678.vrm',
       gltf => {
         this._vrm = gltf.userData.vrm;
-        if (!this._vrm) { console.warn('[avatar] no VRM data'); return; }
+        console.log('[avatar] VRM parsed, vrm:', !!this._vrm);
+        if (!this._vrm) { console.warn('[avatar] no VRM in gltf.userData'); return; }
         VRMUtils.removeUnnecessaryJoints(this._vrm.scene);
         this._s.add(this._vrm.scene);
         this._vrm.scene.position.set(0, -0.05, 0);
-
         if (this._vrm.lookAt) {
           this._vrm.lookAt.target = new THREE.Object3D();
           this._vrm.lookAt.target.position.set(0, 1.5, 10);
         }
-        console.log('[avatar] VRM loaded ✓');
+        console.log('[avatar] VRM in scene ✓');
       },
-      p => { if (p.total) console.log('[avatar]', Math.round(p.loaded/p.total*100)+'%'); },
-      e => console.warn('[avatar] err:', e.message)
+      p => { if (p.total && p.loaded) console.log('[avatar]', Math.round(p.loaded/p.total*100)+'%'); },
+      e => console.error('[avatar] load error:', e)
     );
 
     this._loop();
@@ -61,19 +63,16 @@ class TeacherAvatar {
 
   _loop() {
     requestAnimationFrame(() => this._loop());
-    const dt = 0.016;
     if (this._vrm) {
-      this._vrm.update(dt);
+      this._vrm.update(0.016);
       if (this._isTalking && this._vrm.expressionController) {
         const t = performance.now() * 0.001;
-        const v = 0.3 + Math.sin(t*8)*0.3 + Math.sin(t*13)*0.2 + Math.sin(t*17)*0.2;
+        const v = 0.3 + Math.sin(t*8)*0.3 + Math.sin(t*13)*0.2;
         this._vrm.expressionController.setValue('aa', Math.max(0, v));
         this._vrm.expressionController.setValue('ih', Math.max(0, v*0.5));
-        this._vrm.expressionController.setValue('ou', Math.max(0, v*0.3));
-      } else if (this._vrm?.expressionController) {
+      } else if (this._vrm.expressionController) {
         this._vrm.expressionController.setValue('aa', 0);
         this._vrm.expressionController.setValue('ih', 0);
-        this._vrm.expressionController.setValue('ou', 0);
       }
     }
     this._r.render(this._s, this._cam);
@@ -81,14 +80,9 @@ class TeacherAvatar {
 
   startTalking() { this._isTalking = true; }
   stopTalking() { this._isTalking = false; }
-
-  toggle() {
-    this._c.style.display = this._c.style.display === 'none' ? 'block' : 'none';
-  }
-
+  toggle() { this._c.style.display = this._c.style.display === 'none' ? 'block' : 'none'; }
   _rs() {
-    const w = this._c.clientWidth || 280;
-    const h = this._c.clientHeight || 500;
+    const w = this._c.clientWidth || 280, h = this._c.clientHeight || 500;
     this._r.setSize(w, h);
     this._cam.aspect = w / h;
     this._cam.updateProjectionMatrix();
@@ -106,3 +100,8 @@ function getAvatar() {
   return _inst;
 }
 window.ScholarAvatar = { getAvatar };
+
+} catch(e) {
+  console.error('[avatar] FATAL:', e);
+  window.ScholarAvatar = { getAvatar: () => null };
+}
