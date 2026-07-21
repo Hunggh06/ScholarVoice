@@ -109,7 +109,7 @@ let _instance = null;
 
 function getAvatar() {
   if (!_instance) {
-    const c = document.getElementById('avatar-float');
+    const c = document.getElementById('avatar-box');
     if (!c) return null;
     _instance = new TeacherAvatar(c);
     document.getElementById('avatar-toggle')?.addEventListener('click', () => _instance.toggle());
