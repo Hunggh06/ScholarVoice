@@ -18,34 +18,26 @@ class TeacherAvatar {
     new GLTFLoader().load('1347496417698417678.vrm',gltf=>{
       const m=gltf.scene;
       m.position.set(0,-0.5,0);
-      // Smaller scale, rotate to face camera
-      m.scale.set(0.8,0.8,0.8);
+      m.scale.set(0.7,0.7,0.7);
+      // Rotate 90deg left to face camera
+      m.rotation.y = Math.PI * 0.5;
 
-      // Try rotating around Y with a quaternion to face camera
-      const q=new THREE.Quaternion();
-      q.setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI*-0.5);
-      m.quaternion.copy(q);
-
-      const box=new THREE.Box3().setFromObject(m);
-      const sz=box.getSize(new THREE.Vector3());
-      console.log('[avatar] model size:',sz.x.toFixed(1),sz.y.toFixed(1),sz.z.toFixed(1));
-
-      // Find and pose bones using quaternion rotation
       const findBone=suffix=>{let r=null;m.traverse(n=>{if(n.isBone&&n.name&&n.name.endsWith(suffix))r=n});return r};
-      const la=findBone('joint_LeftArm'), ra=findBone('joint_RightArm');
-      const le=findBone('joint_LeftElbow'), re=findBone('joint_RightElbow');
 
-      if(la){
-        la.rotation.order='YXZ';
-        la.rotation.set(0,0,0.6);
-        console.log('[avatar] posed leftArm: rot',la.rotation.x.toFixed(2),la.rotation.y.toFixed(2),la.rotation.z.toFixed(2));
-      }
-      if(ra){
-        ra.rotation.order='YXZ';
-        ra.rotation.set(0,0,-0.6);
-      }
-      if(le){ le.rotation.order='YXZ'; le.rotation.set(-0.6,0,0); }
-      if(re){ re.rotation.order='YXZ'; re.rotation.set(-0.6,0,0); }
+      // Try rotating SHOULDER bones instead of upper arms
+      const ls=findBone('joint_LeftShoulder'), rs=findBone('joint_RightShoulder');
+      if(ls){ls.rotation.order='YXZ';ls.rotation.set(0,0,0.3);console.log('[avatar] posed L shoulder')}
+      if(rs){rs.rotation.order='YXZ';rs.rotation.set(0,0,-0.3);console.log('[avatar] posed R shoulder')}
+
+      // Also try upper arms as fallback
+      const la=findBone('joint_LeftArm'), ra=findBone('joint_RightArm');
+      if(la&&!ls){la.rotation.order='YXZ';la.rotation.set(0,0,0.6)}
+      if(ra&&!rs){ra.rotation.order='YXZ';ra.rotation.set(0,0,-0.6)}
+
+      // Elbows
+      const le=findBone('joint_LeftElbow'), re=findBone('joint_RightElbow');
+      if(le){le.rotation.order='YXZ';le.rotation.set(-0.5,0,0)}
+      if(re){re.rotation.order='YXZ';re.rotation.set(-0.5,0,0)}
 
       m.traverse(n=>{if(n.isMesh&&n.morphTargetDictionary)for(const[k,i]of Object.entries(n.morphTargetDictionary)){const lo=k.toLowerCase();if(lo.includes('mth')||lo.includes('aa'))this._mouth.push({node:n,index:i,infl:n.morphTargetInfluences})}});
       console.log('[avatar] mouth:',this._mouth.length);
