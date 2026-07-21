@@ -26,7 +26,8 @@
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.4.4/lib/three-vrm.module.js"
     }
   }
   </script>
@@ -231,10 +232,6 @@
     <div id="panel-divider"></div>
 
     <section id="right-panel" class="panel">
-      <div id="avatar-container">
-        <canvas id="avatar-canvas"></canvas>
-        <button id="avatar-toggle" title="Ẩn/Hiện giáo viên">👨‍🏫</button>
-      </div>
       <div id="voice-bar">
         <div id="voice-indicator">
           <span id="voice-icon">🔇</span>
@@ -300,7 +297,12 @@
     </section>
   </main>
 
-  <script type="module" src="js/avatar.js?v=1"></script>
+  <div id="avatar-float">
+    <canvas id="avatar-canvas"></canvas>
+    <button id="avatar-toggle" title="Ẩn/Hiện giáo viên">👨‍🏫</button>
+  </div>
+
+  <script type="module" src="js/avatar.js?v=2"></script>
   <script type="module" src="js/app.js?v=13"></script>
 
   <!-- Inline fallback: đảm bảo nút BẮT ĐẦU NGAY hoạt động kể cả khi module bị lỗi -->

@@ -531,33 +531,42 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
  }
 
  /* ============================================================
-    Avatar 3D Teacher
+    Avatar 3D Teacher — floating bottom-left
     ============================================================ */
- #avatar-container {
-   position:relative;
-   width:100%;
-   max-width:420px;
-   margin:0 auto 8px;
-   background:rgba(255,255,255,0.03);
-   border-radius:16px;
+ #avatar-float {
+   position:fixed;
+   bottom:16px;
+   left:16px;
+   width:240px;
+   height:300px;
+   z-index:100;
+   background:rgba(0,0,0,0.35);
+   backdrop-filter:blur(12px);
+   -webkit-backdrop-filter:blur(12px);
+   border-radius:20px;
    overflow:hidden;
-   border:1px solid rgba(255,255,255,0.06);
+   border:1px solid rgba(255,255,255,0.08);
+   box-shadow:0 8px 32px rgba(0,0,0,0.4);
+   transition:all 0.3s;
+ }
+ #avatar-float:hover {
+   border-color:rgba(255,255,255,0.15);
+   box-shadow:0 12px 40px rgba(0,0,0,0.5);
  }
  #avatar-canvas {
    display:block;
    width:100%;
-   height:auto;
-   min-height:300px;
+   height:100%;
  }
  #avatar-toggle {
    position:absolute;
-   top:8px; right:8px;
-   width:34px; height:34px;
+   top:6px; right:6px;
+   width:28px; height:28px;
    border-radius:50%;
    border:1px solid rgba(255,255,255,0.12);
-   background:rgba(0,0,0,0.4);
+   background:rgba(0,0,0,0.5);
    color:#fff;
-   font-size:1rem;
+   font-size:0.85rem;
    cursor:pointer;
    display:flex;
    align-items:center;
@@ -566,6 +575,8 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
    z-index:2;
  }
  #avatar-toggle:hover {
-   background:rgba(255,255,255,0.15);
-   border-color:rgba(255,255,255,0.25);
+   background:rgba(255,255,255,0.2);
+ }
+ @media (max-width:768px) {
+   #avatar-float { width:160px; height:220px; bottom:8px; left:8px; }
  }
