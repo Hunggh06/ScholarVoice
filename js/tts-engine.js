@@ -13,6 +13,7 @@ export class TTSEngine {
     this._estDuration = 0;
     this._rate = parseFloat(localStorage.getItem('tts_rate') || '1.0');
     this._voiceId = localStorage.getItem('tts_voice') || '';
+    this._voiceURI = null;
 
     this.onStart = null;
     this.onEnd = null;
@@ -47,6 +48,10 @@ export class TTSEngine {
     this._voiceId = name;
     this._voiceName = name;
     localStorage.setItem('tts_voice', name);
+    // Also store the raw voiceURI for speak()
+    const voices = this._synth.getVoices();
+    const v = voices.find(v => (v.lang + ' - ' + v.name) === name);
+    if (v) this._voiceURI = v.voiceURI;
     return true;
   }
 
@@ -70,8 +75,11 @@ export class TTSEngine {
     this._utterance.rate = this._rate;
 
     const voices = this._synth.getVoices();
-    if (this._voiceId) {
-      const v = voices.find(v => v.voiceURI === this._voiceId || v.name === this._voiceId);
+    if (this._voiceURI) {
+      const v = voices.find(v => v.voiceURI === this._voiceURI);
+      if (v) this._utterance.voice = v;
+    } else if (this._voiceId) {
+      const v = voices.find(v => (v.lang + ' - ' + v.name) === this._voiceId);
       if (v) this._utterance.voice = v;
     }
 
