@@ -20,6 +20,17 @@
   <script defer src="lib/pdfjs/pdf.min.js"></script>
 
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- Three.js + VRM import map (3D Avatar) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+    }
+  }
+  </script>
 </head>
 <body>
 
@@ -188,6 +199,10 @@
       <div id="pdf-viewer" class="hidden">
         <div id="canvas-container">
           <canvas id="pdf-canvas"></canvas>
+          <div id="avatar-container">
+            <div id="avatar-loading"></div>
+            <div id="avatar-error" style="display:none">⚠️ Model không tải được</div>
+          </div>
         </div>
         <div id="page-bar">
           <button id="prev-page" class="nav-btn" disabled title="Trang trước">

@@ -63,6 +63,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         '.woff2': 'font/woff2',
         '.ttf': 'font/ttf',
         '.pdf': 'application/pdf',
+        '.vrm': 'model/vrm',
+        '.glb': 'model/gltf-binary',
     }
 
     def do_POST(self):

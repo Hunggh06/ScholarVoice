@@ -6,6 +6,7 @@ import { PDFViewer } from './pdf-viewer.js';
 import { AIEngine } from './ai-engine.js';
 import { TTSEngine } from './tts-engine.js';
 import { ChatManager } from './chat.js';
+import { Avatar3D } from './avatar-3d.js';
 
 class App {
   constructor() {
@@ -24,6 +25,7 @@ class App {
     this._customStyleTimer = null;
     this._prefetchFailures = 0;
     this._isTeaching = false;
+    this.avatar3d = null;
   }
 
   _cancelPrefetch() {
@@ -54,6 +56,15 @@ class App {
     this._setupDebugPanel();
     this._setupCacheIO();
     this._setupLanding();
+
+    // Initialize 3D avatar
+    const avatarContainer = document.getElementById('avatar-container');
+    if (avatarContainer) {
+      this.avatar3d = new Avatar3D(avatarContainer);
+      window.addEventListener('beforeunload', () => {
+        if (this.avatar3d) this.avatar3d.dispose();
+      });
+    }
   }
 
   // ============================================================
@@ -787,8 +798,13 @@ class App {
           : `Trang ${p} - Chưa có âm thanh`;
       dot.addEventListener('click', () => {
         this.pdfViewer.renderPage(p);
-        this._updatePageInfo();
-        this._updatePageCacheBar();
+      this._updatePageInfo();
+      this._updatePageCacheBar();
+
+      // Load 3D avatar model (non-blocking)
+      if (this.avatar3d && !this.avatar3d.isLoaded) {
+        this.avatar3d.loadModel('models/raiden-shogun.vrm').catch(() => {});
+      }
         this.ttsEngine.stop();
         this.currentSegments = null;
         this.pdfViewer.clearHighlight();
@@ -847,6 +863,7 @@ class App {
       this._updateSeekSlider(true);
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
+      if (this.avatar3d) this.avatar3d.setSpeaking(true);
     };
 
     this.ttsEngine.onEnd = () => {
@@ -856,16 +873,19 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
+      if (this.avatar3d) this.avatar3d.setSpeaking(false);
     };
 
     this.ttsEngine.onPause = () => {
       this._updateVoiceStatus('paused', 'Đã tạm dừng');
       this._updatePlayPauseBtn(false);
+      if (this.avatar3d) this.avatar3d.setSpeaking(false);
     };
 
     this.ttsEngine.onResume = () => {
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
+      if (this.avatar3d) this.avatar3d.setSpeaking(true);
     };
 
     this.ttsEngine.onError = (err) => {
@@ -874,6 +894,7 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
+      if (this.avatar3d) this.avatar3d.setSpeaking(false);
     };
 
     this.ttsEngine.onProgress = (pct) => {
