@@ -64,15 +64,7 @@ export class TTSEngine {
   get progress() { return this._progressPct; }
 
   _killCurrent() {
-    clearInterval(this._progressTimer);
-    this._progressTimer = null;
-    this._isSpeaking = false;
-    this._isPaused = false;
-    this._totalPaused = 0;
-    this._utterance = null;
-    this._lastCharIndex = 0;
-    this._lastBoundaryTime = 0;
-    this._lastCalculatedLocalPct = 0;
+    this._cleanup();
     this._synth.cancel();
   }
 
@@ -189,6 +181,9 @@ export class TTSEngine {
     this._isPaused = false;
     this._totalPaused = 0;
     this._utterance = null;
+    this._lastCharIndex = 0;
+    this._lastBoundaryTime = 0;
+    this._lastCalculatedLocalPct = 0;
   }
 
   pause() {
