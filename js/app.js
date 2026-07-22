@@ -61,6 +61,7 @@ class App {
     const avatarContainer = document.getElementById('avatar-container');
     if (avatarContainer) {
       this.avatar2d = new Avatar2D(avatarContainer);
+      console.log('[App] Avatar2D created');
     }
   }
 
