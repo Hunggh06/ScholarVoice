@@ -63,17 +63,28 @@ export class TTSEngine {
   get totalChunks() { return 1; }
   get progress() { return this._progressPct; }
 
-  /**
-   * Speak a text. If keepFullText is true, _fullText is preserved
-   * (used internally by seekTo to keep original text for progress tracking).
-   */
+  _killCurrent() {
+    clearInterval(this._progressTimer);
+    this._progressTimer = null;
+    this._isSpeaking = false;
+    this._isPaused = false;
+    this._totalPaused = 0;
+    this._utterance = null;
+    this._synth.cancel();
+  }
+
   async speak(text, { keepFullText = false, seekOffsetPct = 0 } = {}) {
-    this.stop();
+    // When seeking, seekTo already cleaned up — don't fire onProgress(0)
+    if (keepFullText) {
+      this._killCurrent();
+    } else {
+      this.stop();
+    }
+
     if (!text || !text.trim()) return;
     this._currentText = text;
 
     if (keepFullText) {
-      // Seeking: preserve original _fullText, track offset
       this._seekOffsetPct = seekOffsetPct;
     } else {
       this._fullText = text;
@@ -81,9 +92,6 @@ export class TTSEngine {
     }
 
     this._progressPct = this._seekOffsetPct;
-    this._totalPaused = 0;
-    this._synth.cancel();
-
     this._utterance = new SpeechSynthesisUtterance(text);
     this._utterance.rate = this._rate;
 
@@ -107,7 +115,6 @@ export class TTSEngine {
     };
     this._utterance.onend = () => {
       this._cleanup();
-      // Report exact position: seek offset + (1 - seek offset) = 1.0
       const finalPct = this._seekOffsetPct > 0
         ? this._seekOffsetPct + (1 - this._seekOffsetPct)
         : 1;
@@ -129,7 +136,6 @@ export class TTSEngine {
       if (!this._isSpeaking || this._isPaused || this._estDuration <= 0) return;
       const elapsed = (performance.now() - this._startTime - this._totalPaused) / 1000;
       const localPct = Math.min(elapsed / this._estDuration, 0.99);
-      // Map local progress (0..1 within the current chunk) to absolute progress
       const absPct = this._seekOffsetPct + localPct * (1 - this._seekOffsetPct);
       this._progressPct = absPct;
       if (this.onProgress) this.onProgress(absPct);
@@ -141,6 +147,7 @@ export class TTSEngine {
     this._progressTimer = null;
     this._isSpeaking = false;
     this._isPaused = false;
+    this._totalPaused = 0;
     this._utterance = null;
   }
 
@@ -170,27 +177,25 @@ export class TTSEngine {
     if (this.onProgress) this.onProgress(0);
   }
 
-  /**
-   * Seek to a percentage (0-100) of the full text.
-   * Works by restarting speech from the calculated character position
-   * while preserving the original _fullText for accurate progress tracking.
-   */
   seekTo(pct) {
     if (!this._fullText) return;
-    const pos = Math.floor((pct / 100) * this._fullText.length);
+
+    const pctNorm = Math.max(0, Math.min(100, pct)) / 100;
+    const pos = Math.floor(pctNorm * this._fullText.length);
     const remaining = this._fullText.slice(pos);
-    if (remaining.trim()) {
-      const wasActive = this._isSpeaking || this._isPaused;
-      this._cleanup();
-      this._synth.cancel();
-      if (wasActive) {
-        // Speak remaining portion while keeping original _fullText
-        this.speak(remaining, { keepFullText: true, seekOffsetPct: pct / 100 });
-      } else {
-        this._progressPct = pct / 100;
-        this._seekOffsetPct = pct / 100;
-        if (this.onProgress) this.onProgress(pct / 100);
-      }
+
+    if (!remaining.trim()) return;
+
+    const wasActive = this._isSpeaking || this._isPaused;
+    this._killCurrent();
+
+    if (wasActive) {
+      this.speak(remaining, { keepFullText: true, seekOffsetPct: pctNorm });
+    } else {
+      // Not playing: just update position, don't auto-play
+      this._seekOffsetPct = pctNorm;
+      this._progressPct = pctNorm;
+      if (this.onProgress) this.onProgress(pctNorm);
     }
   }
 
@@ -199,15 +204,15 @@ export class TTSEngine {
     this._rate = newRate;
     localStorage.setItem('tts_rate', String(newRate));
     if (this._isSpeaking || this._isPaused) {
-      const curPct = this._progressPct * 100;
+      const curPct = this._progressPct;
       const full = this._fullText;
-      this.speak(full);
-      // Re-seek to previous position after short delay
-      setTimeout(() => {
-        if (this._isSpeaking || this._isPaused) {
-          this.seekTo(curPct);
-        }
-      }, 100);
+      this._killCurrent();
+      // Start from current position so seeking across rate change works
+      const pos = Math.floor(curPct * full.length);
+      const remaining = full.slice(pos);
+      if (remaining.trim()) {
+        this.speak(remaining, { keepFullText: true, seekOffsetPct: curPct });
+      }
     }
   }
 

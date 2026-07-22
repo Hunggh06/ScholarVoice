@@ -878,7 +878,15 @@ class App {
       } else if (this.ttsEngine.isPaused) {
         this.ttsEngine.resume();
       } else if (this.currentVoiceText) {
-        this.ttsEngine.speak(this.currentVoiceText);
+        const seekPct = this.ttsEngine._seekOffsetPct;
+        if (seekPct > 0) {
+          // User seeked while stopped — start from seek position
+          const pos = Math.floor(seekPct * this.currentVoiceText.length);
+          const remaining = this.currentVoiceText.slice(pos);
+          this.ttsEngine.speak(remaining, { keepFullText: true, seekOffsetPct: seekPct });
+        } else {
+          this.ttsEngine.speak(this.currentVoiceText);
+        }
       }
     });
 
