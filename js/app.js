@@ -6,7 +6,6 @@ import { PDFViewer } from './pdf-viewer.js';
 import { AIEngine } from './ai-engine.js';
 import { TTSEngine } from './tts-engine.js';
 import { ChatManager } from './chat.js';
-import { Avatar2D } from './avatar-2d.js';
 
 class App {
   constructor() {
@@ -25,7 +24,6 @@ class App {
     this._customStyleTimer = null;
     this._prefetchFailures = 0;
     this._isTeaching = false;
-    this.avatar2d = null;
   }
 
   _cancelPrefetch() {
@@ -60,8 +58,7 @@ class App {
     // Initialize 2D avatar
     const avatarContainer = document.getElementById('avatar-container');
     if (avatarContainer) {
-      this.avatar2d = new Avatar2D(avatarContainer);
-      console.log('[App] Avatar2D created');
+      console.log('[App] Avatar inline ready');
     }
   }
 

@@ -223,7 +223,9 @@
     <section id="right-panel" class="panel">
       <div id="avatar-container">
         <div class="av2d-inner">
-          <div class="av2d-character">🎓</div>
+          <div class="av2d-character">
+            <img src="images/raiden-shogun.svg" alt="Raiden Shogun">
+          </div>
           <div class="av2d-visualizer">
             <span class="av2d-bar"></span><span class="av2d-bar"></span>
             <span class="av2d-bar"></span><span class="av2d-bar"></span>
@@ -297,7 +299,53 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=17"></script>
+  <script type="module" src="js/app.js?v=18"></script>
+
+  <!-- 2D Avatar animation (guaranteed to run) -->
+  <script>
+  (function() {
+    var container = document.getElementById('avatar-container');
+    if (!container) return;
+    var bars = container.querySelectorAll('.av2d-bar');
+    var charEl = container.querySelector('.av2d-character');
+    var visEl = container.querySelector('.av2d-visualizer');
+    var gestureEl = container.querySelector('.av2d-gesture');
+    var isSpeaking = false;
+    var gestureTimer = 0;
+    var gestureInterval = 5;
+
+    // Expose to app.js
+    window._avatar2d = {
+      setSpeaking: function(v) {
+        isSpeaking = !!v;
+        if (charEl) charEl.classList.toggle('av2d-speaking', isSpeaking);
+        if (visEl) visEl.classList.toggle('av2d-active', isSpeaking);
+        if (!v && bars) bars.forEach(function(b) { b.style.height = '8%'; });
+        if (!v && gestureEl) gestureEl.style.opacity = '0';
+      }
+    };
+
+    function tick() {
+      requestAnimationFrame(tick);
+      if (!isSpeaking) return;
+      if (bars) bars.forEach(function(b) { b.style.height = (20 + Math.random() * 80) + '%'; });
+      gestureTimer += 0.016;
+      if (gestureTimer >= gestureInterval) {
+        gestureTimer = 0;
+        gestureInterval = 5 + Math.random() * 5;
+        if (gestureEl) {
+          gestureEl.style.opacity = '1';
+          gestureEl.style.transform = 'translateX(0)';
+          setTimeout(function() {
+            if (gestureEl) { gestureEl.style.opacity = '0'; gestureEl.style.transform = 'translateX(12px)'; }
+          }, 1500);
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+    console.log('[Avatar2D] Inline script initialized');
+  })();
+  </script>
 
   <!-- Inline fallback: đảm bảo nút BẮT ĐẦU NGAY hoạt động kể cả khi module bị lỗi -->
   <script>
