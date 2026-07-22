@@ -70,6 +70,9 @@ export class TTSEngine {
     this._isPaused = false;
     this._totalPaused = 0;
     this._utterance = null;
+    this._lastCharIndex = 0;
+    this._lastBoundaryTime = 0;
+    this._lastCalculatedLocalPct = 0;
     this._synth.cancel();
   }
 
@@ -106,10 +109,19 @@ export class TTSEngine {
 
     this._estDuration = Math.max(1, text.length / (12 * this._rate));
     this._startTime = performance.now();
+    this._lastCharIndex = 0;
+    this._lastBoundaryTime = performance.now();
+
+    this._utterance.onboundary = (e) => {
+      this._lastCharIndex = e.charIndex;
+      this._lastBoundaryTime = performance.now();
+      this._updateProgress(e.charIndex / this._currentText.length);
+    };
 
     this._utterance.onstart = () => {
       this._isSpeaking = true;
       this._isPaused = false;
+      this._lastBoundaryTime = performance.now();
       if (this.onStart) this.onStart();
       this._startProgress();
     };
@@ -130,16 +142,44 @@ export class TTSEngine {
     this._synth.speak(this._utterance);
   }
 
+  _updateProgress(baseLocalPct = null) {
+    if (!this._isSpeaking || this._isPaused) return;
+
+    let localPct = baseLocalPct;
+
+    if (localPct === null) {
+      if (this._lastCharIndex > 0) {
+        // Interpolate since the last boundary for smoothness
+        const elapsedSinceBoundary = (performance.now() - this._lastBoundaryTime) / 1000;
+        // Conservative fallback: 10 chars per second
+        const estimatedChars = this._lastCharIndex + (elapsedSinceBoundary * 10 * this._rate);
+        localPct = estimatedChars / this._currentText.length;
+      } else {
+        // Pure fallback if no boundary ever fires
+        const elapsed = (performance.now() - this._startTime - this._totalPaused) / 1000;
+        localPct = elapsed / this._estDuration;
+      }
+    }
+
+    localPct = Math.min(localPct, 0.99);
+
+    // Prevent backwards jumping in the UI
+    if (localPct < this._lastCalculatedLocalPct) {
+      localPct = this._lastCalculatedLocalPct;
+    } else {
+      this._lastCalculatedLocalPct = localPct;
+    }
+
+    const absPct = this._seekOffsetPct + localPct * (1 - this._seekOffsetPct);
+    this._progressPct = absPct;
+    if (this.onProgress) this.onProgress(absPct);
+  }
+
   _startProgress() {
     clearInterval(this._progressTimer);
     this._progressTimer = setInterval(() => {
-      if (!this._isSpeaking || this._isPaused || this._estDuration <= 0) return;
-      const elapsed = (performance.now() - this._startTime - this._totalPaused) / 1000;
-      const localPct = Math.min(elapsed / this._estDuration, 0.99);
-      const absPct = this._seekOffsetPct + localPct * (1 - this._seekOffsetPct);
-      this._progressPct = absPct;
-      if (this.onProgress) this.onProgress(absPct);
-    }, 200);
+      this._updateProgress();
+    }, 100);
   }
 
   _cleanup() {
