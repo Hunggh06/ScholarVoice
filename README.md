@@ -13,7 +13,6 @@ ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on
 - 🔄 **Auto-read** — Auto-advance pages with continuous playback
 - 💾 **Audio Cache** — Export/Import voice cache
 - 🎭 **Custom Teacher Personality** — Add custom instructions like "speak slowly like an old professor", "add funny examples", "use Southern accent"...
-- 🎭 **3D Avatar Lecturer** — Raiden Shogun 3D model lectures with natural animations, lip-sync, and pointing gestures
 
 ## 📺 Demo
 

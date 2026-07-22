@@ -54,12 +54,6 @@ class App {
     this._setupDebugPanel();
     this._setupCacheIO();
     this._setupLanding();
-
-    // Initialize 2D avatar
-    const avatarContainer = document.getElementById('avatar-container');
-    if (avatarContainer) {
-      console.log('[App] Avatar inline ready');
-    }
   }
 
   // ============================================================
@@ -853,7 +847,6 @@ class App {
       this._updateSeekSlider(true);
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
-      if (this.avatar3d) this.avatar2d.setSpeaking(true);
     };
 
     this.ttsEngine.onEnd = () => {
@@ -863,19 +856,16 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
-      if (this.avatar2d) this.avatar2d.setSpeaking(false);
     };
 
     this.ttsEngine.onPause = () => {
       this._updateVoiceStatus('paused', 'Đã tạm dừng');
       this._updatePlayPauseBtn(false);
-      if (this.avatar2d) this.avatar2d.setSpeaking(false);
     };
 
     this.ttsEngine.onResume = () => {
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
-      if (this.avatar2d) this.avatar2d.setSpeaking(true);
     };
 
     this.ttsEngine.onError = (err) => {
@@ -884,7 +874,6 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
-      if (this.avatar2d) this.avatar2d.setSpeaking(false);
     };
 
     this.ttsEngine.onProgress = (pct) => {

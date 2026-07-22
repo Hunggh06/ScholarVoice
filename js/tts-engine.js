@@ -6,6 +6,7 @@ export class TTSEngine {
     this._isPaused = false;
     this._currentText = '';
     this._fullText = '';
+    this._seekOffsetPct = 0;
     this._progressPct = 0;
     this._progressTimer = null;
     this._startTime = 0;
@@ -62,12 +63,24 @@ export class TTSEngine {
   get totalChunks() { return 1; }
   get progress() { return this._progressPct; }
 
-  async speak(text) {
+  /**
+   * Speak a text. If keepFullText is true, _fullText is preserved
+   * (used internally by seekTo to keep original text for progress tracking).
+   */
+  async speak(text, { keepFullText = false, seekOffsetPct = 0 } = {}) {
     this.stop();
     if (!text || !text.trim()) return;
     this._currentText = text;
-    this._fullText = text;
-    this._progressPct = 0;
+
+    if (keepFullText) {
+      // Seeking: preserve original _fullText, track offset
+      this._seekOffsetPct = seekOffsetPct;
+    } else {
+      this._fullText = text;
+      this._seekOffsetPct = 0;
+    }
+
+    this._progressPct = this._seekOffsetPct;
     this._totalPaused = 0;
     this._synth.cancel();
 
@@ -94,7 +107,11 @@ export class TTSEngine {
     };
     this._utterance.onend = () => {
       this._cleanup();
-      if (this.onProgress) this.onProgress(1);
+      // Report exact position: seek offset + (1 - seek offset) = 1.0
+      const finalPct = this._seekOffsetPct > 0
+        ? this._seekOffsetPct + (1 - this._seekOffsetPct)
+        : 1;
+      if (this.onProgress) this.onProgress(Math.min(finalPct, 1));
       if (this.onEnd) this.onEnd();
     };
     this._utterance.onerror = (e) => {
@@ -111,9 +128,11 @@ export class TTSEngine {
     this._progressTimer = setInterval(() => {
       if (!this._isSpeaking || this._isPaused || this._estDuration <= 0) return;
       const elapsed = (performance.now() - this._startTime - this._totalPaused) / 1000;
-      const pct = Math.min(elapsed / this._estDuration, 0.99);
-      this._progressPct = pct;
-      if (this.onProgress) this.onProgress(pct);
+      const localPct = Math.min(elapsed / this._estDuration, 0.99);
+      // Map local progress (0..1 within the current chunk) to absolute progress
+      const absPct = this._seekOffsetPct + localPct * (1 - this._seekOffsetPct);
+      this._progressPct = absPct;
+      if (this.onProgress) this.onProgress(absPct);
     }, 200);
   }
 
@@ -147,17 +166,31 @@ export class TTSEngine {
     this._cleanup();
     this._synth.cancel();
     this._progressPct = 0;
+    this._seekOffsetPct = 0;
     if (this.onProgress) this.onProgress(0);
   }
 
+  /**
+   * Seek to a percentage (0-100) of the full text.
+   * Works by restarting speech from the calculated character position
+   * while preserving the original _fullText for accurate progress tracking.
+   */
   seekTo(pct) {
     if (!this._fullText) return;
     const pos = Math.floor((pct / 100) * this._fullText.length);
     const remaining = this._fullText.slice(pos);
     if (remaining.trim()) {
       const wasActive = this._isSpeaking || this._isPaused;
-      this.stop();
-      if (wasActive) this.speak(remaining);
+      this._cleanup();
+      this._synth.cancel();
+      if (wasActive) {
+        // Speak remaining portion while keeping original _fullText
+        this.speak(remaining, { keepFullText: true, seekOffsetPct: pct / 100 });
+      } else {
+        this._progressPct = pct / 100;
+        this._seekOffsetPct = pct / 100;
+        if (this.onProgress) this.onProgress(pct / 100);
+      }
     }
   }
 
@@ -167,8 +200,14 @@ export class TTSEngine {
     localStorage.setItem('tts_rate', String(newRate));
     if (this._isSpeaking || this._isPaused) {
       const curPct = this._progressPct * 100;
-      this.speak(this._fullText);
-      setTimeout(() => this.seekTo(curPct), 100);
+      const full = this._fullText;
+      this.speak(full);
+      // Re-seek to previous position after short delay
+      setTimeout(() => {
+        if (this._isSpeaking || this._isPaused) {
+          this.seekTo(curPct);
+        }
+      }, 100);
     }
   }
 
