@@ -150,6 +150,64 @@ class App {
   }
 
   // ============================================================
+  //  SUBTITLE
+  // ============================================================
+
+  _splitSentences(text) {
+    // Split by sentence-ending punctuation or newlines, keeping delimiters
+    const parts = text.split(/(?<=[.!?\n])\s+/);
+    return parts.filter(s => s.trim().length > 0);
+  }
+
+  _updateSubtitle(pct) {
+    const el = document.getElementById('subtitle-text');
+    if (!el) return;
+    const text = this.currentVoiceText;
+    if (!text) { el.innerHTML = ''; return; }
+
+    const clean = this._cleanVoiceText(text);
+    const sentences = this._splitSentences(clean);
+    if (sentences.length === 0) { el.innerHTML = ''; return; }
+
+    // Build cumulative length array
+    const cumLen = [];
+    let total = 0;
+    for (const s of sentences) {
+      total += s.length;
+      cumLen.push(total);
+    }
+    const totalLen = total;
+
+    // Find current sentence index
+    const charPos = Math.floor(pct * totalLen);
+    let currentIdx = 0;
+    for (let i = 0; i < cumLen.length; i++) {
+      if (charPos < cumLen[i]) { currentIdx = i; break; }
+      if (i === cumLen.length - 1) currentIdx = i;
+    }
+
+    // Show window: 1 sentence before + current + 1 after
+    const start = Math.max(0, currentIdx - 1);
+    const end = Math.min(sentences.length, currentIdx + 2);
+    const windowSentences = sentences.slice(start, end);
+
+    const parts = windowSentences.map((s, i) => {
+      const actualIdx = start + i;
+      if (actualIdx === currentIdx) {
+        return `<span class="sub-current">${this._escapeHtml(s)}</span>`;
+      }
+      return `<span class="sub-before">${this._escapeHtml(s)}</span>`;
+    });
+
+    el.innerHTML = parts.join(' ');
+  }
+
+  _clearSubtitle() {
+    const el = document.getElementById('subtitle-text');
+    if (el) el.innerHTML = '';
+  }
+
+  // ============================================================
   //  TEACHING STYLE
   // ============================================================
 
@@ -385,6 +443,7 @@ class App {
       this._updateVoiceStatus('idle', 'Đã xoá cache, nhấn 🎓 Đọc để giảng lại');
       this._updatePlayPauseBtn(false);
       this._updateSeekSlider(false);
+      this._clearSubtitle();
       this._showToast('Đã xoá toàn bộ cache', 'success');
     });
   }
@@ -570,6 +629,7 @@ class App {
     this.ttsEngine.stop();
     this.currentSegments = null;
     this.pdfViewer.clearHighlight();
+    this._clearSubtitle();
 
     const cp = this.pdfViewer.currentPage;
     this._pendingPages.delete(cp);
@@ -601,6 +661,7 @@ class App {
     this.ttsEngine.stop();
     this.currentSegments = null;
     this.pdfViewer.clearHighlight();
+    this._clearSubtitle();
 
     const success = direction === 'next'
       ? await this.pdfViewer.nextPage()
@@ -795,6 +856,7 @@ class App {
         this._updateVoiceStatus('idle', 'Sẵn sàng. Nhấn "🎓 Đọc" để nghe giảng.');
         this._updatePlayPauseBtn(false);
         this._updateSeekSlider(false);
+        this._clearSubtitle();
       });
       bar.appendChild(dot);
     }
@@ -828,6 +890,7 @@ class App {
       this._updateVoiceStatus('stopped', 'Đã dừng');
       this._updatePlayPauseBtn(false);
       this._updateSeekSlider(false);
+      this._clearSubtitle();
     });
 
 
@@ -847,6 +910,7 @@ class App {
       this._updateSeekSlider(true);
       document.getElementById('seek-duration').textContent = this._formatTime(1);
       document.getElementById('seek-slider').max = 100;
+      if (this.currentVoiceText) this._updateSubtitle(0);
     };
 
     this.ttsEngine.onEnd = () => {
@@ -856,11 +920,13 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
+      this._clearSubtitle();
     };
 
     this.ttsEngine.onPause = () => {
       this._updateVoiceStatus('paused', 'Đã tạm dừng');
       this._updatePlayPauseBtn(false);
+      this._clearSubtitle();
     };
 
     this.ttsEngine.onResume = () => {
@@ -874,10 +940,12 @@ class App {
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
+      this._clearSubtitle();
     };
 
     this.ttsEngine.onProgress = (pct) => {
       this._updateSeekProgress(pct);
+      this._updateSubtitle(pct);
       if (this.currentSegments && this.currentSegments.length > 0) {
         const seg = this._getCurrentSegment(pct);
         if (seg) this.pdfViewer.setHighlightRegion(seg.regionVert);
