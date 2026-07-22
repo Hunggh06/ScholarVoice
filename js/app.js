@@ -500,6 +500,11 @@ class App {
       this._updatePageInfo();
       this._updatePageCacheBar();
 
+      // Load 3D avatar model (non-blocking)
+      if (this.avatar3d && !this.avatar3d.isLoaded) {
+        this.avatar3d.loadModel('models/raiden-shogun.vrm').catch(() => {});
+      }
+
       this.chatManager.setEnabled(true);
 
       // Tự động khôi phục cache nếu đã lưu trước đó
@@ -800,11 +805,6 @@ class App {
         this.pdfViewer.renderPage(p);
       this._updatePageInfo();
       this._updatePageCacheBar();
-
-      // Load 3D avatar model (non-blocking)
-      if (this.avatar3d && !this.avatar3d.isLoaded) {
-        this.avatar3d.loadModel('models/raiden-shogun.vrm').catch(() => {});
-      }
         this.ttsEngine.stop();
         this.currentSegments = null;
         this.pdfViewer.clearHighlight();
