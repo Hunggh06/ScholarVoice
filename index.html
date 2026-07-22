@@ -189,6 +189,9 @@
         <div id="canvas-container">
           <canvas id="pdf-canvas"></canvas>
         </div>
+        <div id="subtitle-area">
+          <div id="subtitle-text"></div>
+        </div>
         <div id="pdf-toolbar">
           <button id="prev-page" class="nav-btn" disabled title="Trang trước">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
@@ -247,10 +250,6 @@
         <span id="seek-duration">00:00</span>
       </div>
 
-      <div id="subtitle-area">
-        <div id="subtitle-text"></div>
-      </div>
-
       <div id="style-bar">
         <span class="style-label">Phong cách:</span>
         <button class="style-btn active" data-style="medium" title="Giảng đầy đủ, ngắn gọn">📖 Trung bình</button>
@@ -286,7 +285,7 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=22"></script>
+  <script type="module" src="js/app.js?v=23"></script>
 
   <!-- Inline fallback: đảm bảo nút BẮT ĐẦU NGAY hoạt động kể cả khi module bị lỗi -->
   <script>
