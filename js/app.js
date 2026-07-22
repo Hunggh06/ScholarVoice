@@ -186,20 +186,8 @@ class App {
       if (i === cumLen.length - 1) currentIdx = i;
     }
 
-    // Show window: 1 sentence before + current + 1 after
-    const start = Math.max(0, currentIdx - 1);
-    const end = Math.min(sentences.length, currentIdx + 2);
-    const windowSentences = sentences.slice(start, end);
-
-    const parts = windowSentences.map((s, i) => {
-      const actualIdx = start + i;
-      if (actualIdx === currentIdx) {
-        return `<span class="sub-current">${this._escapeHtml(s)}</span>`;
-      }
-      return `<span class="sub-before">${this._escapeHtml(s)}</span>`;
-    });
-
-    el.innerHTML = parts.join(' ');
+    const currentSentence = sentences[currentIdx] || '';
+    el.innerHTML = this._escapeHtml(currentSentence);
   }
 
   _clearSubtitle() {
