@@ -7,5 +7,3 @@ tts_cache/
 .env
 Recording*.mp4
 session/
-models/*.vrm
-models/*.glb
