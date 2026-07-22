@@ -118,6 +118,9 @@ export class Avatar3D {
       this._calibrate();
       this._hideLoading();
       this._loaded = true;
+      // Visual feedback: green glow when ready
+      const c = document.getElementById('avatar-container');
+      if (c) c.style.borderColor = 'rgba(52,211,153,0.5)';
       console.log('[Avatar3D] MODEL LOADED SUCCESSFULLY');
     } catch (err) {
       this._hideLoading();
