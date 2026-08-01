@@ -84,6 +84,7 @@ global.localStorage = {
   getItem: (k) => (store.has(k) ? store.get(k) : null),
   setItem: (k, v) => store.set(k, String(v)),
   removeItem: (k) => store.delete(k),
+  clear: () => store.clear(),
 };
 
 import assert from 'node:assert';
@@ -179,6 +180,7 @@ global.localStorage = {
   getItem: (k) => (store2.has(k) ? store2.get(k) : null),
   setItem: (k, v) => store2.set(k, String(v)),
   removeItem: (k) => store2.delete(k),
+  clear: () => store2.clear(),
 };
 
 import assert from 'node:assert';
