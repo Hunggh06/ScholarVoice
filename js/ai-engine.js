@@ -459,6 +459,51 @@ Trả lời bằng JSON với 2 trường:
     return null;
   }
 
+  _extractVoiceChunks(json, fallbackVoiceText) {
+    if (!json || typeof json !== 'object') return [{ text: fallbackVoiceText || '', regionVert: [0, 1] }];
+    const chunks = json.voice_chunks;
+    if (!Array.isArray(chunks) || chunks.length === 0) return [{ text: fallbackVoiceText || '', regionVert: [0, 1] }];
+
+    const result = [];
+    for (const c of chunks) {
+      if (!c || typeof c.text !== 'string' || !c.text.trim()) continue;
+      result.push({
+        text: c.text,
+        regionVert: Array.isArray(c.region_vert) && c.region_vert.length === 2 ? c.region_vert : [0, 1]
+      });
+    }
+    return result.length > 0 ? result : [{ text: fallbackVoiceText || '', regionVert: [0, 1] }];
+  }
+
+  _extractInteractiveQuestions(json, voiceChunks) {
+    if (!json || typeof json !== 'object') return [];
+    const qs = json.interactive_questions;
+    if (!Array.isArray(qs) || qs.length === 0) return [];
+
+    const maxAfterChunk = Array.isArray(voiceChunks) ? voiceChunks.length - 2 : -1;
+    const result = [];
+
+    for (const q of qs) {
+      if (!q || typeof q !== 'object') continue;
+      if (typeof q.after_chunk !== 'number' || q.after_chunk < 0 || q.after_chunk > maxAfterChunk) continue;
+      // Strictly increasing after_chunk (two questions at same chunk breaks _qIdx lookup)
+      if (result.length > 0 && q.after_chunk <= result[result.length - 1].after_chunk) return [];
+      if (typeof q.question !== 'string' || !q.question.trim()) continue;
+      if (!Array.isArray(q.options) || q.options.length !== 4) continue;
+      if (typeof q.correct_index !== 'number' || q.correct_index < 0 || q.correct_index > 3) continue;
+      if (typeof q.explanation !== 'string') continue;
+
+      result.push({
+        after_chunk: q.after_chunk,
+        question: q.question,
+        options: q.options,
+        correct_index: q.correct_index,
+        explanation: q.explanation
+      });
+    }
+    return result;
+  }
+
   /** Lấy kết quả từ cache (hỗ trợ cả format cũ và mới) */
   _getPageCache(pageNum) {
     const key = `page_${pageNum}_${this.provider}_${this.teachingStyle}`;
