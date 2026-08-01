@@ -677,3 +677,22 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
 #flash-result-text { font-size:1.15rem; color:var(--text-primary); line-height:1.6; }
 
 #flash-empty .btn-primary { margin-top:8px; }
+
+/* ============================================================
+   EXAM (Đề ôn tổng hợp)
+   ============================================================ */
+#exam-section { padding:0 0 16px 0; border-bottom:1px solid rgba(255,255,255,0.04); margin-bottom:12px; }
+.exam-title { font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; }
+.exam-desc { font-size:0.78rem; color:var(--text-muted); margin-bottom:10px; }
+.exam-controls {
+  display:flex; align-items:center; gap:10px;
+}
+#exam-count {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+  border-radius:var(--radius-sm); color:var(--text-primary);
+  font-family:inherit; font-size:0.85rem; padding:8px 12px; cursor:pointer;
+}
+.exam-status-text { font-size:0.78rem; color:var(--text-muted); margin-top:8px; }
+.exam-question-source { font-size:0.7rem; color:var(--text-muted); margin-top:4px; font-style:italic; }
+.exam-report-table { width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:12px; }
+.exam-report-table td { padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
