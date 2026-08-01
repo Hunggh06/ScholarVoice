@@ -900,6 +900,7 @@ class App {
 
     // TTS đọc câu hỏi
     const ttsText = `${q.question}. A. ${q.options[0]}. B. ${q.options[1]}. C. ${q.options[2]}. D. ${q.options[3]}.`;
+    this._updateSubtitleForChunk('Q', ttsText);
     this.ttsEngine.speak(this._cleanVoiceText(ttsText));
 
     this._awaitingAnswer = true;
@@ -1116,6 +1117,11 @@ class App {
     };
 
     this.ttsEngine.onProgress = (pct) => {
+      // Bỏ qua cập nhật UI từ onProgress nếu đang giảng theo chunk (interactive)
+      // vì chunk có tiến trình riêng và các câu hỏi/xác nhận cũng gọi ttsEngine.speak
+      // làm pct bị nhảy lung tung so với văn bản gốc.
+      if (this._chunks) return;
+
       this._updateSeekProgress(pct);
       this._updateSubtitle(pct);
       if (this.currentSegments && this.currentSegments.length > 0) {
@@ -1331,6 +1337,7 @@ class App {
     const ttsConfirm = isCorrect
       ? `Đúng rồi. ${q.explanation}`
       : `Sai rồi. Đáp án đúng là ${q.options[q.correct_index]}. ${q.explanation}`;
+    this._updateSubtitleForChunk('A', ttsConfirm);
     this.ttsEngine.speak(this._cleanVoiceText(ttsConfirm));
 
     this._qIdx++;
