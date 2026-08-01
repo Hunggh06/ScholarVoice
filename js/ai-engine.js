@@ -35,6 +35,7 @@ export class AIEngine {
     this.teachingStyle = saved.teachingStyle || 'medium';
     this.customStyle = saved.customStyle || '';
     this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.teachThenQuiz : true;
+    this.interactiveTeach = saved.interactiveTeach !== undefined ? saved.interactiveTeach : true;
 
     // Bộ nhớ ngữ cảnh toàn bài: mỗi trang đã giảng lưu tóm tắt
     this.docContext = [];
@@ -61,6 +62,7 @@ export class AIEngine {
     if (settings.teachingStyle !== undefined) this.teachingStyle = settings.teachingStyle;
     if (settings.customStyle !== undefined) this.customStyle = settings.customStyle;
     if (settings.teachThenQuiz !== undefined) this.teachThenQuiz = settings.teachThenQuiz;
+    if (settings.interactiveTeach !== undefined) this.interactiveTeach = settings.interactiveTeach;
 
     localStorage.setItem('ai_settings', JSON.stringify({
       provider: this.provider,
@@ -76,6 +78,7 @@ export class AIEngine {
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
       teachThenQuiz: this.teachThenQuiz,
+      interactiveTeach: this.interactiveTeach,
     }));
     // Chỉ xoá cache nếu đổi provider hoặc đổi style
     if (oldProvider !== this.provider) {
@@ -102,6 +105,7 @@ export class AIEngine {
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
       teachThenQuiz: this.teachThenQuiz,
+      interactiveTeach: this.interactiveTeach,
     };
   }
 
