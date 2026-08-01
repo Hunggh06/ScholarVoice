@@ -374,6 +374,13 @@ await page.route('**generativelanguage.googleapis.com/**', async (route, request
 await page.click('#chat-clear-btn', { force: true });
 await page.waitForTimeout(300);
 
+// Clear chat để loại bỏ ❓ từ các session trước (false positive)
+await page.evaluate(() => {
+  const btn = document.querySelector('#chat-clear-btn');
+  if (btn) btn.click();
+});
+await page.waitForTimeout(300);
+
 await page.click('#teach-now', { force: true });
 await page.waitForTimeout(6000);
 
