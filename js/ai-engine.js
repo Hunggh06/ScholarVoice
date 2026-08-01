@@ -136,7 +136,8 @@ export class AIEngine {
    * @param {number} pageNum - số trang
    * @param {string} pageText - text đã trích xuất có cấu trúc
    */
-  async teachPage(imageBase64, pageNum, pageText, onStream) {
+  async teachPage(imageBase64, pageNum, pageText, onStream, opts = {}) {
+    const isTitleSlide = !!opts.isTitleSlide;
     const cached = this._getPageCache(pageNum);
     if (cached) return cached;
 
@@ -154,7 +155,20 @@ export class AIEngine {
     const styleGuide = styleGuides[this.teachingStyle] || styleGuides.medium;
     const customGuide = this.customStyle ? `\nYÊU CẦU RIÊNG: ${this.customStyle}` : '';
 
-    const systemPrompt = `Bạn là giảng viên đang giảng liên tục toàn bộ tài liệu. Đây là trang ${pageNum}.
+    let systemPrompt;
+    if (isTitleSlide) {
+      systemPrompt = `Bạn là giảng viên đang giảng liên tục toàn bộ tài liệu. Trang ${pageNum} này CHỈ CÓ TIÊU ĐỀ (trang bìa, trang mở đầu chương, trang chia mục).
+
+${contextText}
+HÀNH VI BẮT BUỘC:
+- Nói NGẮN GỌN 1-2 câu giới thiệu nội dung sắp học, nối mạch tự nhiên với bài giảng trước đó.
+- KHÔNG phân tích, KHÔNG bịa nội dung, KHÔNG lặp lại tiêu đề dài dòng.
+- Giọng điệu tự nhiên như giảng viên thật.
+
+NGÔN NGỮ: Luôn giảng bằng TIẾNG VIỆT.
+KHÔNG dùng markdown hay ký tự đặc biệt nào. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).`;
+    } else {
+      systemPrompt = `Bạn là giảng viên đang giảng liên tục toàn bộ tài liệu. Đây là trang ${pageNum}.
 
 ${contextText}${styleGuide}${customGuide}
 
@@ -179,11 +193,12 @@ CÁCH ĐỌC SLIDE:
 - TUYỆT ĐỐI KHÔNG dùng ký hiệu = + - × $ ^ _ { } — luôn thay bằng lời.
 - KHÔNG dùng markdown hay ký tự đặc biệt (**bold**, *italic*, code, ## heading, - bullet).
 - KHÔNG dùng ký tự đặc biệt nào cả. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).`;
+    }
 
 
     let userPrompt;
     let expectJson = false;
-    if (hasImage && hasVision) {
+    if (!isTitleSlide && hasImage && hasVision) {
       expectJson = true;
       userPrompt = `Giảng nội dung đầy đủ của trang tài liệu trong ảnh đính kèm.
 
@@ -238,7 +253,7 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     // Lưu tóm tắt vào bộ nhớ ngữ cảnh
     this._updateContext(pageNum, voiceText);
 
-    const result = { voice_text: voiceText, segments };
+    const result = { voice_text: voiceText, segments, isTitleSlide };
     const cacheKey = `page_${pageNum}_${this.provider}_${this.teachingStyle}`;
     this.pageCache.set(cacheKey, result);
     return result;
