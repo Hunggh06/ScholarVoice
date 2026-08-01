@@ -532,14 +532,16 @@ Trả lời bằng JSON với 2 trường:
   }
 
   /**
-   * Tạo quiz 3 câu hỏi cho một trang. Cache theo trang + provider.
+   * Tạo quiz câu hỏi cho một trang. Cache theo trang + provider + số câu.
    * @param {number} pageNum
    * @param {string} pageText - text đã trích xuất của trang
    * @param {string|null} imageBase64 - ảnh trang (provider có vision thì dùng)
+   * @param {number} [count=3] - số câu hỏi (3/5/10)
    * @returns {Promise<Array>} mảng câu hỏi đã validate
    */
-  async generateQuiz(pageNum, pageText, imageBase64) {
-    const cacheKey = `quiz_${pageNum}_${this.provider}`;
+  async generateQuiz(pageNum, pageText, imageBase64, count = 3) {
+    const n = [3, 5, 10].includes(count) ? count : 3;
+    const cacheKey = `quiz_${pageNum}_${this.provider}_${n}`;
     const cached = this.quizCache.get(cacheKey);
     if (cached) return cached;
 
@@ -548,8 +550,10 @@ Trả lời bằng JSON với 2 trường:
     }
 
     const systemPrompt = `Bạn là giảng viên tạo câu hỏi trắc nghiệm để kiểm tra hiểu bài.
-Tạo CHÍNH XÁC 3 câu hỏi từ nội dung trang tài liệu. Độ khó tăng dần.
-Câu hỏi phải bám sát nội dung trang, KHÔNG bịa kiến thức ngoài.
+Tạo CHÍNH XÁC ${n} câu hỏi từ nội dung trang tài liệu. Độ khó tăng dần.
+Câu hỏi PHẢI về kiến thức môn học có trong nội dung trang (khái niệm, công thức, định nghĩa, số liệu, ví dụ).
+TUYỆT ĐỐI KHÔNG hỏi về số trang, layout, định dạng, tiêu đề, hoặc kiến thức không có trong nội dung trang.
+Ví dụ: ❌ Sai: "Trang này là trang số mấy?" / ✅ Đúng: "Theo công thức trong trang, giá trị của X là bao nhiêu?"
 Mỗi câu hỏi gồm: type "mcq" (có options 4 đáp án + correct_index từ 0 đến 3) hoặc "tf" (có correct true/false), question, explanation (1-2 câu giải thích vì sao đúng).
 Trả về JSON duy nhất, không thêm bất kỳ text nào ngoài JSON:
 {
@@ -582,9 +586,12 @@ Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
     return questions;
   }
 
-  /** Xoá quiz cache của một trang (dùng cho nút "Làm lại" — sinh câu mới) */
+  /** Xoá quiz cache của một trang theo prefix (mọi số câu) — dùng cho nút "Làm lại" */
   clearQuizForPage(pageNum) {
-    this.quizCache.delete(`quiz_${pageNum}_${this.provider}`);
+    const prefix = `quiz_${pageNum}_${this.provider}_`;
+    for (const key of this.quizCache.keys()) {
+      if (key.startsWith(prefix)) this.quizCache.delete(key);
+    }
   }
 
   clearCache() {
