@@ -1383,7 +1383,7 @@ git commit -m "feat: add interactive-teach-toggle to settings modal"
 - Tên file PDF: `/tmp/qa-interactive-teach.pdf`.
 - `SKIP_ERRS` filter console errors (PDF rendering warnings, etc.).
 
-- [ ] **Step 1: Tạo QA test script**
+- [x] **Step 1: Tạo QA test script**
 
 ```javascript
 // QA: interactive teach flow — mock Gemini + real PDF via fpdf
@@ -1783,7 +1783,7 @@ console.log('✅ QA interactive teach PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy QA test**
+- [x] **Step 2: Chạy QA test**
 
 Start server:
 ```bash
@@ -1804,7 +1804,7 @@ pgrep -f server.py | grep -v $$ | xargs -r kill
 pgrep -f chrome-linux | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/qa-interactive-teach.mjs
