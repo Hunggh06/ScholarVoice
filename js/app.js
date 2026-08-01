@@ -17,6 +17,9 @@ class App {
     this.chatManager = new ChatManager();
     this.quizManager = new QuizManager(this);
     this._lastTaughtWasTitle = false;
+    this._teachThenQuiz = true;
+    this._justTaught = false;
+    this._loadTeachThenQuizSetting();
 
     this.isProcessing = false;
     this.currentVoiceText = '';
@@ -39,6 +42,17 @@ class App {
     this.aiEngine.abort();
   }
 
+  _loadTeachThenQuizSetting() {
+    const raw = localStorage.getItem('ai_settings');
+    if (!raw) { this._teachThenQuiz = true; return; }
+    try {
+      const s = JSON.parse(raw);
+      this._teachThenQuiz = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;
+    } catch {
+      this._teachThenQuiz = true;
+    }
+  }
+
   /** Khởi tạo ứng dụng */
   init() {
     this._setupUpload();
@@ -59,6 +73,7 @@ class App {
     this._setupDebugPanel();
     this._setupCacheIO();
     this._setupLanding();
+    this._setupQuizNowBtn();
   }
 
   // ============================================================
@@ -404,6 +419,7 @@ class App {
     document.getElementById('ollama-url').value = s.ollamaUrl;
     document.getElementById('ollama-vision').checked = s.ollamaVision;
     document.getElementById('deepseek-model').value = s.deepseekModel || 'deepseek-chat';
+    document.getElementById('teach-then-quiz-toggle').checked = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;
 
     this._toggleProviderUI(s.provider);
   }
@@ -464,8 +480,10 @@ class App {
         ollamaUrl: document.getElementById('ollama-url').value,
         ollamaVision: document.getElementById('ollama-vision').checked,
         deepseekModel: document.getElementById('deepseek-model').value,
+        teachThenQuiz: document.getElementById('teach-then-quiz-toggle').checked,
       });
       this.aiEngine.clearCache();
+      this._loadTeachThenQuizSetting();
 
       this._hideApiKeyModal();
       const labels = {
@@ -655,6 +673,9 @@ class App {
     this.ttsEngine.stop();
     this.currentSegments = null;
     this._lastTaughtWasTitle = false;
+    this._justTaught = false;
+    const quizNowBtn = document.getElementById('quiz-now-btn');
+    if (quizNowBtn) quizNowBtn.classList.add('hidden');
     this.pdfViewer.clearHighlight();
     this._clearSubtitle();
 
@@ -923,6 +944,7 @@ class App {
 
     this.ttsEngine.onEnd = () => {
       this._isTeaching = false;
+      this._justTaught = true;
       this._updateVoiceStatus('done', `Đã giảng xong trang ${this.pdfViewer.currentPage}`);
       this._updatePlayPauseBtn(false);
       this._updateSeekSlider(false);
@@ -992,33 +1014,54 @@ class App {
     textEl.classList.remove('active');
     if (waveformEl) waveformEl.classList.add('hidden');
 
+    const quizNowBtn = document.getElementById('quiz-now-btn');
+
     switch (state) {
       case 'idle':
         iconEl.textContent = '🔇';
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'loading':
         iconEl.textContent = '📂';
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'analyzing':
         iconEl.textContent = '🤔';
         textEl.classList.add('active');
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'speaking':
         iconEl.textContent = '🔊';
         textEl.classList.add('active');
         if (waveformEl) waveformEl.classList.remove('hidden');
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'paused':
         iconEl.textContent = '⏸️';
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'done':
         iconEl.textContent = '✅';
+        if (quizNowBtn) {
+          if (this._justTaught && this._teachThenQuiz) quizNowBtn.classList.remove('hidden');
+          else quizNowBtn.classList.add('hidden');
+          this._justTaught = false;
+        }
         break;
       case 'stopped':
         iconEl.textContent = '⏹️';
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
       case 'error':
         iconEl.textContent = '❌';
+        if (quizNowBtn) quizNowBtn.classList.add('hidden');
+        this._justTaught = false;
         break;
     }
   }
@@ -1044,6 +1087,22 @@ class App {
   _setupQuizEvents() {
     // ChatManager dùng chung các nút chat; QuizManager tự xử lý tab riêng.
     // Không cần thêm gì — QuizManager đã wire trong constructor.
+  }
+
+  _setupQuizNowBtn() {
+    const btn = document.getElementById('quiz-now-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => this._onQuizNowClick());
+  }
+
+  _onQuizNowClick() {
+    if (!this.pdfViewer.isLoaded) return;
+    this.quizManager.switchTab('quiz');
+    this.quizManager.questions = [];
+    this.quizManager.currentIndex = 0;
+    this.quizManager.correctCount = 0;
+    this.quizManager.answered = false;
+    this.quizManager._generateForCurrentPage();
   }
 
   async _handleChatMessage(question) {
