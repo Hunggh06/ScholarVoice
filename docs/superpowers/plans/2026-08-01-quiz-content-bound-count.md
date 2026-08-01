@@ -6,7 +6,7 @@
 
 **Architecture:** Sửa `AIEngine.generateQuiz()` thêm tham số `count`, cache key thêm `_${count}`, `clearQuizForPage()` xoá theo prefix. `QuizManager` đọc dropdown `#quiz-count`, truyền count, lưu `total` trong điểm. Dropdown đặt trong `#quiz-empty` cạnh nút "Tạo câu hỏi" — đổi số không tự sinh lại (phương án B). Không đổi server.py, không thêm dependency.
 
-**Tech Stack:** Vanilla JS ES modules, localStorage, Node v20 (unit test `node:assert`), Playwright (QA stub), Web Speech API (giữ nguyên).
+**Tech Stack:** Vanilla JS ES modules, localStorage, Node v20 (unit test `node:assert`), Playwright (QA network interception), Web Speech API (giữ nguyên).
 
 **Spec:** `docs/superpowers/specs/2026-08-01-quiz-content-bound-count-design.md`
 
@@ -121,8 +121,8 @@ Expected: `✅ quiz-validate: tất cả test pass`, exit 0
 - [ ] **Step 4: Commit**
 
 ```bash
-GIT_MASTER=1 git add js/ai-engine.js
-GIT_MASTER=1 git commit -m "feat: add count param and content-bound prompt to generateQuiz" -m "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)" -m "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+git add js/ai-engine.js
+git commit -m "feat: add count param and content-bound prompt to generateQuiz"
 ```
 
 ---
@@ -200,8 +200,8 @@ pgrep -f server.py | grep -v $$ | xargs -r kill
 - [ ] **Step 4: Commit**
 
 ```bash
-GIT_MASTER=1 git add index.html css/style.css
-GIT_MASTER=1 git commit -m "feat: add quiz question count dropdown (3/5/10)" -m "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)" -m "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+git add index.html css/style.css
+git commit -m "feat: add quiz question count dropdown (3/5/10)"
 ```
 
 ---
@@ -332,151 +332,132 @@ Expected: exit 0
 - [ ] **Step 10: Commit**
 
 ```bash
-GIT_MASTER=1 git add js/quiz.js
-GIT_MASTER=1 git commit -m "feat: wire quiz count dropdown and dynamic score display" -m "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)" -m "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+git add js/quiz.js
+git commit -m "feat: wire quiz count dropdown and dynamic score display"
 ```
 
 ---
 
-### Task 4: QA stub — count 5/10 render đúng
+### Task 4: QA network-interception — count 5/10 render đúng, đổi dropdown không gọi API
 
 **Files:**
-- Create: `tests/qa-quiz-count.mjs` (theo pattern `tests/smoke-quiz.mjs`)
+- Create: `tests/qa-quiz-count.mjs`
+
+**Chiến lược:** Dùng Playwright `page.route()` chặn request tới Gemini API (URL `https://generativelanguage.googleapis.com/v1beta/.../generateContent`). Đọc `count` từ body request ("Tạo CHÍNH XÁC N câu hỏi") để trả về đúng N câu. Tạo PDF thật bằng `python3` + `fpdf` (đã cài sẵn 2.8.7) để `pdfViewer.isLoaded` = true. Tránh hoàn toàn `window.app` (không tồn tại — `js/app.js` tạo `const app = new App()` module-scoped).
+
+**Các điểm kỹ thuật cần lưu ý khi viết script:**
+- Route pattern `**generativelanguage.googleapis.com/**` khớp URL Gemini thật (xác nhận: `_callGeminiAPI` line 851 build URL `this.geminiBaseUrl/models/.../generateContent?key=...`).
+- Response shape phải khớp cách app parse: `data.candidates[0].content.parts[0].text` (`_callGeminiAPI` line 906).
+- `addInitScript` đặt `localStorage` với `provider: 'gemini'` + `apiKey: 'fake-key'` trước khi page load → app constructor đọc được → `isConfigured = true` → không bị modal API key chặn.
+- `#quiz-retry-btn` (index.html line 312) nằm trong `#quiz-result` (view kết quả), nhưng click `force:true` vẫn trigger `_retry()` ngay cả khi đang ở question view (quiz.js line 256 gọi `clearQuizForPage` + `_generateForCurrentPage`).
+- `#quiz-count` nằm trong `#quiz-empty` — hidden khi đang xem questions. `page.selectOption` hoạt động trên hidden elements. Chính xác để test "đổi dropdown không tự sinh".
+- `_onTabOpened()` (quiz.js line 64) tự động sinh quiz khi mở tab → TEST 1 dựa vào hành vi này (không cần click nút "Tạo câu hỏi"). PDF thật (fpdf) là bắt buộc để `pdfViewer.isLoaded = true`.
+- Nếu python3/fpdf bị thiếu → test fail sớm với message rõ ràng (fpdf 2.8.7 đã xác nhận cài sẵn trên máy này).
 
 - [ ] **Step 1: Tạo QA test script**
 
 Tạo file `tests/qa-quiz-count.mjs`:
 
 ```javascript
-// QA: kiểm tra quiz count dropdown — chọn 5/10 → render đúng N câu, stub nhận count
-// Chạy: node tests/qa-quiz-count.mjs  (cần server đang chạy ở localhost:8080)
+// QA: quiz count dropdown — network interception + real PDF via fpdf
+// Chạy: node tests/qa-quiz-count.mjs  (cần server localhost:8080; tạo PDF thật bằng python3 fpdf)
 import { chromium } from 'playwright';
+import { spawnSync } from 'node:child_process';
+
+// --- Tạo PDF HỢP LỆ thật bằng python3 + fpdf (đã cài sẵn 2.8.7) ---
+const py = `from fpdf import FPDF
+p = FPDF(); p.add_page(); p.set_font('Helvetica', size=14)
+p.cell(0, 10, 'Dai so tuyen tinh: Ma tran va dinh thuc', ln=1)
+p.multi_cell(0, 8, 'Dinh thuc cua ma tran vuong cap 2 A = [[a,b],[c,d]] duoc tinh la ad - bc. Ma tran don vi I co dinh thuc bang 1. Phep nhan ma tran khong giao hoan.')
+p.output('/tmp/qa-real.pdf')`;
+const r = spawnSync('python3', ['-c', py]);
+if (r.status !== 0) throw new Error('fpdf failed: ' + r.stderr.toString());
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-const SKIP_ERRS = ['InvalidPDFException', 'Lỗi tải PDF'];
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-page.on('console', (m) => {
-  if (m.type() === 'error') {
-    const txt = m.text();
-    if (!SKIP_ERRS.some(pat => txt.includes(pat))) errors.push('console: ' + txt);
-  }
+page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+
+// --- Set settings TRƯỚC khi page load: provider gemini + api key giả → không bị modal chặn ---
+await page.addInitScript(() => {
+  localStorage.setItem('ai_settings', JSON.stringify({ provider: 'gemini', apiKey: 'fake-key' }));
 });
 
-const stubCalls = []; // ghi log mỗi lần generateQuiz được gọi
-const expectedCounts = []; // để assert sau
+// --- Chặn request tới Gemini: đếm số lần gọi + trả về đúng N câu theo "Tạo CHÍNH XÁC N câu hỏi" trong body ---
+let apiCalls = 0;
+let lastCount = null;
+await page.route('**generativelanguage.googleapis.com/**', async (route) => {
+  apiCalls++;
+  const req = route.request();
+  let count = 3;
+  try {
+    const body = req.postData() || '';
+    const m = body.match(/Tạo CHÍNH XÁC (\d+) câu hỏi/);
+    if (m) count = parseInt(m[1], 10);
+  } catch {}
+  lastCount = count;
+  const questions = [];
+  for (let i = 0; i < count; i++) {
+    questions.push({
+      type: 'mcq',
+      question: `Câu hỏi ${i + 1} về định thức`,
+      options: ['ad - bc', 'a + d', 'ab + cd', 'a*d'],
+      correct_index: 0,
+      explanation: `Vì định thức cấp 2 bằng ad trừ bc. Câu ${i + 1}`
+    });
+  }
+  const payload = JSON.stringify({ questions });
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ candidates: [{ content: { parts: [{ text: payload }] } }] })
+  });
+});
 
 await page.goto('http://localhost:8080/');
 await page.waitForSelector('#start-btn', { state: 'visible' });
 await page.click('#start-btn', { force: true });
 await page.waitForTimeout(500);
 
-const modalVisible = await page.isVisible('#api-modal');
-if (modalVisible) {
-  await page.click('#close-modal');
-  await page.waitForTimeout(300);
-}
+// Upload PDF thật (hợp lệ, fpdf tạo)
+await page.setInputFiles('#pdf-input', '/tmp/qa-real.pdf');
+await page.waitForTimeout(2000);
 
-// Inject stub generateQuiz — trả về N câu MCQ giả dựa trên count nhận được
-await page.evaluate(() => {
-  // Đợi app khởi tạo xong (window.app có sau khi module load)
-  // Smoke test chạy được nghĩa là app đã sẵn sàng, ta stub trong evaluate
-});
-await page.waitForTimeout(500);
+// === TEST 1: dropdown mặc định 3 → mở tab quiz (tự sinh) → assert "Câu 1/3" ===
+await page.click('#tab-quiz', { force: true, timeout: 10000 });
+await page.waitForTimeout(2000);
+let qText = await page.textContent('#quiz-question-text');
+console.log('Mặc định → question text:', qText);
+if (!qText.includes('Câu 1/3')) throw new Error(`TEST 1 FAIL: expected "Câu 1/3", got "${qText}"`);
 
-await page.evaluate(() => {
-  const origGenerateQuiz = window.app.aiEngine.generateQuiz.bind(window.app.aiEngine);
-  window.app.aiEngine.generateQuiz = async function(pageNum, pageText, imageBase64, count) {
-    window.__qa_stub_calls = window.__qa_stub_calls || [];
-    window.__qa_stub_calls.push({ pageNum, count: count || 3 });
-    // Sinh N câu MCQ giả
-    const questions = [];
-    for (let i = 0; i < (count || 3); i++) {
-      questions.push({
-        type: 'mcq',
-        question: `Câu hỏi ${i + 1} của trang ${pageNum}`,
-        options: ['Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D'],
-        correct_index: 0,
-        explanation: 'Giải thích câu ' + (i + 1)
-      });
-    }
-    // Lưu vào cache thật để quiz.js lấy được
-    const n = [3, 5, 10].includes(count) ? count : 3;
-    const cacheKey = `quiz_${pageNum}_${window.app.aiEngine.provider}_${n}`;
-    window.app.aiEngine.quizCache.set(cacheKey, questions);
-    return questions;
-  };
-});
-
-// Upload dummy PDF
-const fs = await import('node:fs');
-fs.writeFileSync('/tmp/dummy-qa.pdf', '%PDF-1.4\n%EOF');
-await page.setInputFiles('#pdf-input', '/tmp/dummy-qa.pdf');
-await page.waitForTimeout(1500);
-
-// === TEST 1: dropdown 3 (mặc định) → chọn 5 → bấm tạo → assert 5 câu ===
-
-// Chọn dropdown 5
+// === TEST 2: chọn 5 → "Làm lại" → assert "Câu 1/5" ===
 await page.selectOption('#quiz-count', '5');
 await page.waitForTimeout(200);
-
-// Mở tab quiz
-await page.click('#tab-quiz', { force: true, timeout: 10000 });
-await page.waitForTimeout(500);
-
-// Bấm nút tạo quiz
-await page.click('#quiz-start-btn', { force: true });
-await page.waitForTimeout(2000);
-
-// Assert: câu hỏi hiển thị "Câu 1/5"
-const qText1 = await page.textContent('#quiz-question-text');
-console.log('Dropdown 5 → question text:', qText1);
-if (!qText1.includes('Câu 1/5')) throw new Error(`TEST 1 FAIL: expected "Câu 1/5", got "${qText1}"`);
-
-// Assert: 4 options
-const optCount1 = await page.evaluate(() => document.querySelectorAll('.quiz-option').length);
-console.log('Dropdown 5 → options count:', optCount1);
-if (optCount1 !== 4) throw new Error(`TEST 1 FAIL: expected 4 options, got ${optCount1}`);
-
-// === TEST 2: chọn 10 → làm lại → assert 10 câu ===
-
-// Quay về empty state (bấm "Làm lại")
 await page.click('#quiz-retry-btn', { force: true });
-await page.waitForTimeout(500);
+await page.waitForTimeout(2000);
+qText = await page.textContent('#quiz-question-text');
+console.log('Chọn 5 → question text:', qText);
+if (!qText.includes('Câu 1/5')) throw new Error(`TEST 2 FAIL: expected "Câu 1/5", got "${qText}"`);
+if (lastCount !== 5) throw new Error(`TEST 2 FAIL: AI nhận count=${lastCount}, expected 5`);
 
-// Chọn dropdown 10
+// === TEST 3: chọn 10 → "Làm lại" → assert "Câu 1/10" ===
 await page.selectOption('#quiz-count', '10');
 await page.waitForTimeout(200);
-
-// Bấm nút tạo quiz (đang ở empty state sau retry)
-await page.click('#quiz-start-btn', { force: true });
+await page.click('#quiz-retry-btn', { force: true });
 await page.waitForTimeout(2000);
+qText = await page.textContent('#quiz-question-text');
+console.log('Chọn 10 → question text:', qText);
+if (!qText.includes('Câu 1/10')) throw new Error(`TEST 3 FAIL: expected "Câu 1/10", got "${qText}"`);
+if (lastCount !== 10) throw new Error(`TEST 3 FAIL: AI nhận count=${lastCount}, expected 10`);
 
-const qText2 = await page.textContent('#quiz-question-text');
-console.log('Dropdown 10 → question text:', qText2);
-if (!qText2.includes('Câu 1/10')) throw new Error(`TEST 2 FAIL: expected "Câu 1/10", got "${qText2}"`);
-
-// === TEST 3: assert stub nhận đúng count ===
-const calls = await page.evaluate(() => window.__qa_stub_calls || []);
-console.log('Stub calls:', JSON.stringify(calls));
-const count5call = calls.find(c => c.count === 5);
-const count10call = calls.find(c => c.count === 10);
-if (!count5call) throw new Error('TEST 3 FAIL: stub không nhận được count=5');
-if (!count10call) throw new Error('TEST 3 FAIL: stub không nhận được count=10');
-
-// === TEST 4: đổi dropdown khi đang xem quiz KHÔNG tự sinh lại ===
-// Đang xem quiz 10 câu → đổi dropdown → kiểm tra stub không bị gọi thêm
-const callsBefore = calls.length;
+// === TEST 4: đổi dropdown khi đang xem quiz → KHÔNG gọi API thêm ===
+const callsBefore = apiCalls;
 await page.selectOption('#quiz-count', '3');
-await page.waitForTimeout(1000);
-const callsAfter = await page.evaluate(() => (window.__qa_stub_calls || []).length);
-console.log('Stub calls before dropdown change:', callsBefore, 'after:', callsAfter);
-if (callsAfter !== callsBefore) {
-  throw new Error(`TEST 4 FAIL: đổi dropdown tự sinh lại quiz (stub gọi thêm ${callsAfter - callsBefore} lần)`);
-}
+await page.waitForTimeout(1500);
+console.log('API calls before:', callsBefore, 'after:', apiCalls);
+if (apiCalls !== callsBefore) throw new Error(`TEST 4 FAIL: đổi dropdown tự sinh lại quiz (API gọi thêm ${apiCalls - callsBefore} lần)`);
 
-// === Final ===
 if (errors.length > 0) {
   console.log('LỖI TRÌNH DUYỆT:');
   for (const e of errors) console.log(' -', e);
@@ -510,8 +491,8 @@ pgrep -f server.py | grep -v $$ | xargs -r kill
 - [ ] **Step 3: Commit**
 
 ```bash
-GIT_MASTER=1 git add tests/qa-quiz-count.mjs
-GIT_MASTER=1 git commit -m "test: add QA for quiz count dropdown" -m "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)" -m "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+git add tests/qa-quiz-count.mjs
+git commit -m "test: add QA for quiz count dropdown"
 ```
 
 ---
@@ -558,8 +539,8 @@ pgrep -f server.py | grep -v $$ | xargs -r kill
 - [ ] **Step 4: Commit**
 
 ```bash
-GIT_MASTER=1 git add README.md
-GIT_MASTER=1 git commit -m "docs: update README quiz feature description" -m "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)" -m "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+git add README.md
+git commit -m "docs: update README quiz feature description"
 ```
 
 ---
@@ -569,21 +550,21 @@ GIT_MASTER=1 git commit -m "docs: update README quiz feature description" -m "Ul
 - [ ] **Step 1: Kiểm tra git status**
 
 ```bash
-GIT_MASTER=1 git status
+git status
 ```
 Expected: sạch (ngoài `.omo/` và `docs/superpowers/plans/` nếu plan file vẫn unstaged).
 
 - [ ] **Step 2: Liệt kê commits tạo ra**
 
 ```bash
-GIT_MASTER=1 git log --oneline $(GIT_MASTER=1 git merge-base HEAD main 2>/dev/null || GIT_MASTER=1 git merge-base HEAD master)..HEAD
+git log --oneline -5
 ```
-Expected: 5 commits hiện ra (Task 1-5), sắp xếp theo dependency:
-1. `feat: add count param and content-bound prompt to generateQuiz`
-2. `feat: add quiz question count dropdown (3/5/10)`
+Expected: 5 commits (Task 1-5) với commit mới nhất đầu tiên:
+1. `docs: update README quiz feature description`
+2. `test: add QA for quiz count dropdown`
 3. `feat: wire quiz count dropdown and dynamic score display`
-4. `test: add QA for quiz count dropdown`
-5. `docs: update README quiz feature description`
+4. `feat: add quiz question count dropdown (3/5/10)`
+5. `feat: add count param and content-bound prompt to generateQuiz`
 
 ---
 
@@ -593,7 +574,7 @@ Expected: 5 commits hiện ra (Task 1-5), sắp xếp theo dependency:
 - Yêu cầu 1 (câu hỏi bám nội dung môn học): ✓ — systemPrompt mới trong Task 1 thêm chỉ thị "PHẢI về kiến thức môn học" + "TUYỆT ĐỐI KHÔNG hỏi về số trang..." + ví dụ đúng/sai.
 - Yêu cầu 2 (cấm tuyệt đối câu meta): ✓ — cùng chỉ thị trên.
 - Yêu cầu 3 (dropdown 3/5/10): ✓ — Task 2 thêm `#quiz-count` trong `#quiz-empty`.
-- Yêu cầu 4 (đổi số không tự sinh lại — phương án B): ✓ — dropdown chỉ nằm trong `#quiz-empty` (ẩn khi quiz đang làm); QA Task 4 bước 4 assert stub không bị gọi thêm khi đổi dropdown.
+- Yêu cầu 4 (đổi số không tự sinh lại — phương án B): ✓ — dropdown chỉ nằm trong `#quiz-empty` (ẩn khi quiz đang làm); QA Task 4 TEST 4 assert API calls không tăng khi đổi dropdown (network interception đếm request tới Gemini).
 - Yêu cầu 5 (cache key mới): ✓ — `quiz_${pageNum}_${this.provider}_${n}` trong Task 1.
 - Yêu cầu 6 (Làm lại xoá prefix): ✓ — `clearQuizForPage` dùng vòng lặp `startsWith(prefix)` trong Task 1.
 - Yêu cầu 7 (điểm /N động): ✓ — `_saveScore` thêm `total`, `_syncForPage` dùng `score.total || 3`.
@@ -613,9 +594,14 @@ Expected: 5 commits hiện ra (Task 1-5), sắp xếp theo dependency:
 - QuizManager constructor gọi `document.getElementById('quiz-count')` — nếu DOM chưa có (không thể vì HTML load trước JS module), `_getQuizCount` dùng `?.value` → fallback 3.
 - Record cũ không có `total` → `score.total || 3` trong `_syncForPage`.
 - `_saveScore` mặc định `total = 3` trong signature — gọi cũ không có total vẫn lưu đúng.
+- QA test: không dùng `window.app` (không tồn tại — `js/app.js` dùng `const app` module-scoped), không dùng dummy PDF `%PDF-1.4` (PDF.js không parse được). Dùng network interception trên Gemini URL + PDF thật từ python3 fpdf.
+- `page.selectOption` hoạt động trên hidden elements → test được "đổi dropdown không tự sinh" dù `#quiz-count` ẩn khi đang làm quiz.
+- `#quiz-retry-btn` nằm trong `#quiz-result` view nhưng click `force:true` trigger `_retry()` ngay cả khi đang ở question view.
+- `addInitScript` đặt localStorage trước page load → app constructor đọc được provider + apiKey → không bị API key modal chặn.
+- Route `**generativelanguage.googleapis.com/**` khớp URL Gemini thật (`_callGeminiAPI` line 851), response shape `{candidates:[{content:{parts:[{text:"..."}]}}]}` khớp cách app parse (`_callGeminiAPI` line 900-906).
 
 **Ghi chú triển khai:**
 - Không đổi server.py, không thêm dependency.
 - `quizCache.clear()` trong `clearCache()` (line 592) vẫn dùng `this.quizCache.clear()` — không cần sửa vì xoá toàn bộ map, không phụ thuộc key format.
 - `saveSettings()` line 79 cũng gọi `this.quizCache.clear()` — không cần sửa vì lý do tương tự.
-- QA test `tests/qa-quiz-count.mjs` viết theo pattern `tests/smoke-quiz.mjs`: Playwright, stub `generateQuiz`, skip console errors từ dummy PDF, assert qua DOM text/options count.
+- QA test `tests/qa-quiz-count.mjs` dùng Playwright network interception (`page.route`) chặn request tới Gemini URL, tạo PDF thật bằng python3 fpdf, `addInitScript` để tránh modal API key. KHÔNG dùng `window.app` hay dummy PDF.
