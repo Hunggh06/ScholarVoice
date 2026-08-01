@@ -167,6 +167,7 @@ export class QuizManager {
       this._renderQuestion();
     } catch (err) {
       if (err.message === 'Đã hủy yêu cầu.') return;
+      if (genId !== this._genSeq) return;
       console.error('Lỗi tạo quiz:', err);
       this.quizLoading.classList.add('hidden');
       this._resetToEmpty();
