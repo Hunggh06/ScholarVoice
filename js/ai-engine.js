@@ -76,6 +76,7 @@ export class AIEngine {
     // Chỉ xoá cache nếu đổi provider hoặc đổi style
     if (oldProvider !== this.provider) {
       this.pageCache.clear();
+      this.quizCache.clear();
       this.docContext = [];
       this.clearChatHistory();
     }
@@ -588,6 +589,7 @@ Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
 
   clearCache() {
     this.pageCache.clear();
+    this.quizCache.clear();
     this.docContext = [];
     this.clearChatHistory();
   }
