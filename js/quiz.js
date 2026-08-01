@@ -15,6 +15,7 @@ export class QuizManager {
     this.quizEmpty = document.getElementById('quiz-empty');
     this.quizEmptyText = document.getElementById('quiz-empty-text');
     this.quizStartBtn = document.getElementById('quiz-start-btn');
+    this.quizCountSelect = document.getElementById('quiz-count');
     this.quizLoading = document.getElementById('quiz-loading');
     this.quizQuestion = document.getElementById('quiz-question');
     this.quizQuestionText = document.getElementById('quiz-question-text');
@@ -87,7 +88,7 @@ export class QuizManager {
   /** App gọi sau khi tải PDF — bật nút tạo */
   onPdfLoaded() {
     this.quizStartBtn.disabled = false;
-    this.quizEmptyText.textContent = 'Tạo 3 câu hỏi trắc nghiệm cho trang đang xem.';
+    this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
     this._syncForPage(this.app.pdfViewer.currentPage);
   }
 
@@ -96,7 +97,7 @@ export class QuizManager {
     this.quizTitle.textContent = `📝 Quiz trang ${pageNum}`;
     const score = this._getScore(pageNum);
     if (score && score.attempts > 0) {
-      this.quizBestScore.textContent = `Điểm cao nhất: ${score.best}/3`;
+      this.quizBestScore.textContent = `Điểm cao nhất: ${score.best}/${score.total || 3}`;
       this.quizBestScore.classList.remove('hidden');
     } else {
       this.quizBestScore.classList.add('hidden');
@@ -114,7 +115,13 @@ export class QuizManager {
     this.quizLoading.classList.add('hidden');
     this.quizEmpty.classList.remove('hidden');
     this.quizStartBtn.disabled = !this.app.pdfViewer.isLoaded;
-    this.quizEmptyText.textContent = 'Tạo 3 câu hỏi trắc nghiệm cho trang đang xem.';
+    this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
+  }
+
+  /** Số câu hỏi từ dropdown (3/5/10, mặc định 3) */
+  _getQuizCount() {
+    const v = parseInt(this.quizCountSelect?.value, 10);
+    return [3, 5, 10].includes(v) ? v : 3;
   }
 
   /** Sinh quiz cho trang hiện tại */
@@ -147,7 +154,7 @@ export class QuizManager {
     try {
       const imageBase64 = this.app.pdfViewer.getPageImageBase64();
       const pageText = await this.app.pdfViewer.getPageText();
-      const questions = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64);
+      const questions = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64, this._getQuizCount());
 
       if (this.app.pdfViewer.currentPage !== pageNum || genId !== this._genSeq) {
         if (genId === this._genSeq) {
@@ -244,7 +251,7 @@ export class QuizManager {
   /** Tổng kết + lưu điểm */
   _showResult() {
     const pageNum = this.app.pdfViewer.currentPage;
-    this._saveScore(pageNum, this.correctCount);
+    this._saveScore(pageNum, this.correctCount, this.questions.length);
 
     this.quizQuestion.classList.add('hidden');
     this.quizResult.classList.remove('hidden');
@@ -281,17 +288,18 @@ export class QuizManager {
     }
   }
 
-  _saveScore(pageNum, score) {
+  _saveScore(pageNum, score, total = 3) {
     const filename = this.app._pdfFileName;
     if (!filename) return;
     try {
       const key = 'quiz_scores_' + filename;
       const all = JSON.parse(localStorage.getItem(key) || '{}');
-      const cur = all[pageNum] || { best: 0, last: 0, lastTime: 0, attempts: 0 };
+      const cur = all[pageNum] || { best: 0, last: 0, lastTime: 0, attempts: 0, total: 0 };
       cur.last = score;
       cur.best = Math.max(cur.best, score);
       cur.lastTime = Date.now();
       cur.attempts += 1;
+      cur.total = total;
       all[pageNum] = cur;
       localStorage.setItem(key, JSON.stringify(all));
     } catch (e) {
