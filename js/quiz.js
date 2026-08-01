@@ -71,9 +71,11 @@ export class QuizManager {
   onPageChanged(pageNum) {
     this._syncForPage(pageNum);
     if (!this.quizArea.classList.contains('hidden')) {
-      if (!this.questions || this.questions.length === 0) {
-        this._generateForCurrentPage();
-      }
+      this.questions = [];
+      this.currentIndex = 0;
+      this.correctCount = 0;
+      this.answered = false;
+      this._generateForCurrentPage();
     }
   }
 
@@ -141,7 +143,11 @@ export class QuizManager {
       const pageText = await this.app.pdfViewer.getPageText();
       const questions = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64);
 
-      if (this.app.pdfViewer.currentPage !== pageNum) return; // user đã đổi trang
+      if (this.app.pdfViewer.currentPage !== pageNum) {
+        this.quizLoading.classList.add('hidden');
+        this._resetToEmpty();
+        return;
+      }
 
       this.questions = questions;
       this.currentIndex = 0;
