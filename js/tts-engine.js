@@ -26,6 +26,9 @@ export class TTSEngine {
 
     this.synth = this._synth;
     this._voiceName = this._voiceId;
+
+    this._sequenceActive = false;
+    this._currentChunkIndex = 0;
   }
 
   getAllVoices() {
@@ -134,6 +137,64 @@ export class TTSEngine {
     this._synth.speak(this._utterance);
   }
 
+  _speakChunk(text) {
+    return new Promise((resolve, reject) => {
+      if (!text || !text.trim()) return resolve();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = this._rate;
+      const voices = this._synth.getVoices();
+      if (this._voiceURI) {
+        const v = voices.find(v => v.voiceURI === this._voiceURI);
+        if (v) utterance.voice = v;
+      } else if (this._voiceId) {
+        const v = voices.find(v => (v.lang + ' - ' + v.name) === this._voiceId);
+        if (v) utterance.voice = v;
+      }
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => {
+        if (e.error === 'canceled' || e.error === 'interrupted') resolve();
+        else reject(new Error(e.error));
+      };
+      this._synth.speak(utterance);
+    });
+  }
+
+  async speakSequence(chunks, callbacks = {}) {
+    if (!Array.isArray(chunks) || chunks.length === 0) {
+      if (callbacks.onEnd) callbacks.onEnd();
+      return;
+    }
+
+    this._sequenceActive = true;
+    this._currentChunkIndex = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      if (!this._sequenceActive) return;
+      this._currentChunkIndex = i;
+      const chunk = chunks[i];
+      if (callbacks.onChunkStart) callbacks.onChunkStart(i, chunk);
+      try {
+        await this._speakChunk(chunk.text);
+      } catch (err) {
+        this._sequenceActive = false;
+        if (callbacks.onError) callbacks.onError(err);
+        return;
+      }
+      if (!this._sequenceActive) return;
+      if (i < chunks.length - 1) {
+        const shouldContinue = callbacks.onChunkEnd ? callbacks.onChunkEnd(i, chunk) : true;
+        if (shouldContinue === false) {
+          this._sequenceActive = false;
+          return false;
+        }
+        await sleep(150);
+      }
+    }
+
+    this._sequenceActive = false;
+    if (callbacks.onEnd) callbacks.onEnd();
+  }
+
   _updateProgress(baseLocalPct = null) {
     if (!this._isSpeaking || this._isPaused) return;
 
@@ -205,6 +266,8 @@ export class TTSEngine {
   }
 
   stop() {
+    this._sequenceActive = false;
+    this._currentChunkIndex = 0;
     this._cleanup();
     this._synth.cancel();
     this._progressPct = 0;
@@ -260,4 +323,8 @@ export class TTSEngine {
   set rate(value) { this.applyRate(value); }
   get rate() { return this._rate; }
   getVoiceById(id) { return this._synth.getVoices().find(v => v.voiceURI === id || v.name === id); }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
