@@ -6,6 +6,8 @@ import { PDFViewer } from './pdf-viewer.js';
 import { AIEngine } from './ai-engine.js';
 import { TTSEngine } from './tts-engine.js';
 import { ChatManager } from './chat.js';
+import { QuizManager } from './quiz.js';
+import { detectTitleSlide } from './title-detect.js';
 
 class App {
   constructor() {
@@ -13,6 +15,8 @@ class App {
     this.aiEngine = new AIEngine();
     this.ttsEngine = new TTSEngine();
     this.chatManager = new ChatManager();
+    this.quizManager = new QuizManager(this);
+    this._lastTaughtWasTitle = false;
 
     this.isProcessing = false;
     this.currentVoiceText = '';
@@ -41,6 +45,7 @@ class App {
     this._setupNavigation();
     this._setupVoiceControls();
     this._setupChat();
+    this._setupQuizEvents();
     this._setupTTSCallbacks();
     this._setupKeyboardShortcuts();
     this._setupClearCacheBtn();
@@ -537,6 +542,7 @@ class App {
       this._updatePageCacheBar();
 
       this.chatManager.setEnabled(true);
+      this.quizManager.onPdfLoaded();
 
       // Tự động khôi phục cache nếu đã lưu trước đó
       const restored = this._autoRestoreCache(file.name);
@@ -648,6 +654,7 @@ class App {
 
     this.ttsEngine.stop();
     this.currentSegments = null;
+    this._lastTaughtWasTitle = false;
     this.pdfViewer.clearHighlight();
     this._clearSubtitle();
 
@@ -658,6 +665,7 @@ class App {
     if (success) {
       this._updatePageInfo();
       this._updatePageCacheBar();
+      this.quizManager.onPageChanged(this.pdfViewer.currentPage);
 
       if (this.autoRead) {
         await this._teachCurrentPage();
@@ -695,6 +703,7 @@ class App {
 
       this.currentVoiceText = entry.voice_text;
       this.currentSegments = entry.segments || null;
+      this._lastTaughtWasTitle = !!entry.isTitleSlide;
       this.ttsEngine.speak(this._cleanVoiceText(entry.voice_text));
       this._isTeaching = true;
       this._setVoiceButtonsEnabled(true);
@@ -716,7 +725,8 @@ class App {
     try {
       const imageBase64 = this.pdfViewer.getPageImageBase64();
       const pageText = await this.pdfViewer.getPageText();
-      const result = await this.aiEngine.teachPage(imageBase64, targetPage, pageText);
+      this._lastTaughtWasTitle = detectTitleSlide(pageText);
+      const result = await this.aiEngine.teachPage(imageBase64, targetPage, pageText, null, { isTitleSlide: this._lastTaughtWasTitle });
 
       if (this.pdfViewer.currentPage !== targetPage) {
         return;
@@ -766,11 +776,12 @@ class App {
       try {
         console.log(`[Prefetch] Đang đọc ngầm trang ${pageNum}...`);
         const pageText = await this.pdfViewer.getTextForPage(pageNum);
+        const isTitleSlide = detectTitleSlide(pageText);
         let imageBase64 = null;
         if (hasVision) {
           imageBase64 = await this.pdfViewer.getPageImageForPage(pageNum);
         }
-        await this.aiEngine.teachPage(imageBase64, pageNum, pageText);
+        await this.aiEngine.teachPage(imageBase64, pageNum, pageText, null, { isTitleSlide });
         console.log(`[Prefetch] Đã cache trang ${pageNum}`);
         this._prefetchFailures = 0;
         break;
@@ -880,6 +891,7 @@ class App {
 
     document.getElementById('btn-stop').addEventListener('click', () => {
       this._isTeaching = false;
+      this._lastTaughtWasTitle = false;
       this.ttsEngine.stop();
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
@@ -917,6 +929,15 @@ class App {
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
       this._clearSubtitle();
+
+      // Slide tiêu đề + auto-read: tự chuyển trang sau ~2.5s để bài giảng liền mạch
+      if (this.autoRead && this._lastTaughtWasTitle) {
+        setTimeout(() => {
+          if (!this.ttsEngine.isSpeaking && this.pdfViewer.isLoaded) {
+            this._navigatePage('next');
+          }
+        }, 2500);
+      }
     };
 
     this.ttsEngine.onPause = () => {
@@ -1018,6 +1039,11 @@ class App {
       this.aiEngine.clearChatHistory();
       this.chatManager.clearMessages();
     });
+  }
+
+  _setupQuizEvents() {
+    // ChatManager dùng chung các nút chat; QuizManager tự xử lý tab riêng.
+    // Không cần thêm gì — QuizManager đã wire trong constructor.
   }
 
   async _handleChatMessage(question) {
