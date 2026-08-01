@@ -483,13 +483,13 @@ git commit -m "feat: add _extractVoiceChunks and _extractInteractiveQuestions pa
 - Vision mode: mở rộng JSON schema (thêm 2 field vào cấu trúc JSON hiện có).
 - Text mode: không thay đổi JSON schema (text mode không bắt JSON nên không thể yêu cầu voice_chunks).
 
-- [ ] **Step 1: Đọc chính xác các dòng cần sửa trong `teachPage`**
+- [x] **Step 1: Đọc chính xác các dòng cần sửa trong `teachPage`**
 
 ```bash
 grep -n 'TƯƠNG TÁC\|voice_text\|const result\|_parseSegments\|expectJson\|segments.*=.*parsed\|return result\|const cacheKey' js/ai-engine.js
 ```
 
-- [ ] **Step 2: Sửa system prompt non-title — thêm đoạn TƯƠNG TÁC HỎI ĐÁP (sau line 189)**
+- [x] **Step 2: Sửa system prompt non-title — thêm đoạn TƯƠNG TÁC HỎI ĐÁP (sau line 189)**
 
 Thay thế đoạn từ line 189 đến line 202 (trước dòng `let userPrompt;` line 206) bằng bản có thêm hướng dẫn tương tác:
 
@@ -539,7 +539,7 @@ TƯƠNG TÁC HỎI ĐÁP (tùy chọn):
 
 Cụ thể: edit toàn bộ block `} else { systemPrompt = ... }` với nội dung mới có thêm đoạn TƯƠNG TÁC HỎI ĐÁP ở cuối.
 
-- [ ] **Step 3: Mở rộng JSON schema cho vision mode user prompt (lines 210-227)**
+- [x] **Step 3: Mở rộng JSON schema cho vision mode user prompt (lines 210-227)**
 
 Thay thế đoạn `userPrompt = \`Giảng nội dung đầy đủ...\`` (lines 210-227) bằng:
 
@@ -575,7 +575,7 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
 
 **Chú ý:** Schema mới thay thế `segments` bằng `voice_chunks` — xóa trường `segments` cũ trong schema, nhưng parser vẫn giữ logic parse segments cũ (line 241-257) làm fallback an toàn.
 
-- [ ] **Step 4: Parse response — thêm `voice_chunks` + `interactive_questions` vào result (sau line 248)**
+- [x] **Step 4: Parse response — thêm `voice_chunks` + `interactive_questions` vào result (sau line 248)**
 
 Sau khối parse segments (lines 241-257), trước `this._updateContext(pageNum, voiceText)` (line 261), thêm:
 
@@ -584,7 +584,7 @@ Sau khối parse segments (lines 241-257), trước `this._updateContext(pageNum
     const interactiveQuestions = this._extractInteractiveQuestions(parsed || {}, voiceChunks);
 ```
 
-- [ ] **Step 5: Thêm field vào result object và cache (line 263)**
+- [x] **Step 5: Thêm field vào result object và cache (line 263)**
 
 Thay thế line 263:
 
@@ -592,14 +592,14 @@ Thay thế line 263:
     const result = { voice_text: voiceText, segments, isTitleSlide, voice_chunks: voiceChunks, interactive_questions: interactiveQuestions };
 ```
 
-- [ ] **Step 6: Verify syntax**
+- [x] **Step 6: Verify syntax**
 
 ```bash
 node --check js/ai-engine.js
 ```
 Expected: exit 0
 
-- [ ] **Step 7: Unit test — verify teachPage response shape (tạo file test riêng)**
+- [x] **Step 7: Unit test — verify teachPage response shape (tạo file test riêng)**
 
 Vì `teachPage` gọi API thật (không mock được dễ dàng trong unit test), test strategy:
 - Unit test: `_extractVoiceChunks` + `_extractInteractiveQuestions` đã test ở Task 2.
@@ -614,14 +614,14 @@ grep -c 'voice_chunks' js/ai-engine.js          # Expected: 4+ (schema + parser 
 grep -c 'interactive_questions' js/ai-engine.js # Expected: 5+ (schema + parser + result + extractor)
 ```
 
-- [ ] **Step 8: Regression check**
+- [x] **Step 8: Regression check**
 
 ```bash
 node --check js/ai-engine.js && node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs && node tests/interactive-settings.test.mjs && node tests/interactive-parse.test.mjs
 ```
 Expected: tất cả pass, exit 0
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add js/ai-engine.js
