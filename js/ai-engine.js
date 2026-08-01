@@ -216,7 +216,10 @@ TƯƠNG TÁC HỎI ĐÁP (tùy chọn):
 
     let userPrompt;
     let expectJson = false;
-    if (!isTitleSlide && hasImage && hasVision) {
+    const useVision = !isTitleSlide && hasImage && hasVision;
+    const wantsInteractive = !isTitleSlide && this.interactiveTeach;
+
+    if (useVision) {
       expectJson = true;
       userPrompt = `Giảng nội dung đầy đủ của trang tài liệu trong ảnh đính kèm.
 
@@ -230,6 +233,35 @@ QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
     {
       "text": "nội dung giảng cho đoạn tiếp theo",
       "region_vert": [0.35, 1.0]
+    }
+  ],
+  "interactive_questions": [
+    {
+      "after_chunk": 0,
+      "question": "Câu hỏi tiếng Việt?",
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      "correct_index": 1,
+      "explanation": "Giải thích ngắn gọn tại sao đáp án này đúng."
+    }
+  ]
+}
+voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn nhỏ (2-5 đoạn).
+interactive_questions là mảng 0-3 câu hỏi trắc nghiệm. Nếu không có câu hỏi thì trả về mảng rỗng [].
+KHÔNG thêm bất kỳ text nào ngoài JSON.`;
+    } else if (wantsInteractive) {
+      expectJson = true;
+      userPrompt = `Giảng nội dung trang tài liệu bên dưới (dòng bắt đầu bằng ## là tiêu đề, dòng trống ngăn cách các phần):\n\n${pageText}
+
+QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
+{
+  "voice_chunks": [
+    {
+      "text": "nội dung giảng cho đoạn 1, viết thành MỘT đoạn văn liên tục, tuân theo mọi luật giảng từ system prompt",
+      "region_vert": [0, 1.0]
+    },
+    {
+      "text": "nội dung giảng cho đoạn tiếp theo",
+      "region_vert": [0, 1.0]
     }
   ],
   "interactive_questions": [
@@ -475,7 +507,7 @@ Trả lời bằng JSON với 2 trường:
       return JSON.parse(raw);
     } catch {
       // Try to extract JSON block from markdown
-      const m = raw.match(/\{[\s\S]*"segments"[\s\S]*\}/);
+      const m = raw.match(/\{[\s\S]*"(segments|voice_chunks)"[\s\S]*\}/);
       if (m) {
         try { return JSON.parse(m[0]); } catch {}
       }
