@@ -261,6 +261,11 @@
         <textarea id="custom-style-input" placeholder="Tuỳ chỉnh thêm, VD: nói chậm như thầy giáo già, thêm ví dụ hài hước, dùng giọng miền Nam..."></textarea>
       </div>
 
+      <div id="right-tabs">
+        <button id="tab-chat" class="right-tab active" data-tab="chat">💬 Hỏi đáp</button>
+        <button id="tab-quiz" class="right-tab" data-tab="quiz">📝 Quiz</button>
+      </div>
+
       <div id="chat-area">
         <div id="chat-messages">
           <div class="welcome-message">
@@ -275,6 +280,39 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9 22,2"/></svg>
           </button>
           <button id="chat-clear-btn" class="voice-btn" title="Xóa lịch sử chat" style="display:none;width:36px;height:36px;">🗑️</button>
+        </div>
+      </div>
+
+      <div id="quiz-area" class="hidden">
+        <div id="quiz-header">
+          <span id="quiz-title">📝 Quiz</span>
+          <span id="quiz-best-score" class="hidden"></span>
+        </div>
+        <div id="quiz-body">
+          <div id="quiz-empty" class="welcome-message">
+            <div class="welcome-icon">📝</div>
+            <p id="quiz-empty-text">Tải PDF lên để tạo câu hỏi trắc nghiệm cho trang đang xem.</p>
+            <button id="quiz-start-btn" class="btn-primary" disabled>🔄 Tạo câu hỏi cho trang này</button>
+          </div>
+          <div id="quiz-loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Đang tạo 3 câu hỏi...</p>
+          </div>
+          <div id="quiz-question" class="hidden">
+            <div id="quiz-question-text"></div>
+            <div id="quiz-options"></div>
+            <div id="quiz-feedback" class="hidden"></div>
+            <div id="quiz-actions">
+              <button id="quiz-next-btn" class="btn-primary hidden">Câu tiếp →</button>
+            </div>
+          </div>
+          <div id="quiz-result" class="hidden">
+            <div id="quiz-result-score"></div>
+            <div style="display:flex;gap:10px;">
+              <button id="quiz-retry-btn" class="btn-primary">🔄 Làm lại (câu hỏi mới)</button>
+              <button id="quiz-close-btn" class="btn-ghost">Đóng</button>
+            </div>
+          </div>
         </div>
       </div>
 
