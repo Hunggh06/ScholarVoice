@@ -1,6 +1,6 @@
 /**
  * QuizManager - Module quiz trắc nghiệm theo trang
- * Luồng: mở tab → tự sinh 3 câu (cache) → trả lời từng câu (chấm ngay + giải thích + TTS) → tổng kết → lưu điểm
+ * Luồng: mở tab → tự sinh câu hỏi (cache) → trả lời từng câu (chấm ngay + giải thích + TTS) → tổng kết → lưu điểm
  */
 export class QuizManager {
   constructor(app) {
