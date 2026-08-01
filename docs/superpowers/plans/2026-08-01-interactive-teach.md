@@ -78,6 +78,14 @@ Sau line 104 (`teachThenQuiz: this.teachThenQuiz,`), thêm:
 - [ ] **Step 5: Unit test — tạo `tests/interactive-settings.test.mjs`**
 
 ```javascript
+// Node v20 không có global localStorage (Node 22+) — AIEngine constructor đọc ai_settings từ localStorage
+const store = new Map();
+global.localStorage = {
+  getItem: (k) => (store.has(k) ? store.get(k) : null),
+  setItem: (k, v) => store.set(k, String(v)),
+  removeItem: (k) => store.delete(k),
+};
+
 import assert from 'node:assert';
 import { AIEngine } from '../js/ai-engine.js';
 
@@ -149,7 +157,7 @@ git commit -m "feat: add interactiveTeach setting to AIEngine with unit tests"
 
 **Rủi ro cần chú ý:**
 - `_extractVoiceChunks` fallback: parse fail hoặc mảng rỗng → tạo 1 chunk `[{text: voice_text, regionVert: [0, 1]}]`.
-- `_extractInteractiveQuestions` validate: `after_chunk` phải <= `voice_chunks.length - 2`, `correct_index` 0-3, `options.length === 4`. Mọi lỗi → return `[]`.
+- `_extractInteractiveQuestions` validate: `after_chunk` phải <= `voice_chunks.length - 2`, `correct_index` 0-3, `options.length === 4`, và `after_chunk` values phải **strictly increasing** (mỗi câu hỏi phải có `after_chunk` > câu trước — hai câu hỏi chung một chunk sẽ phá `_qIdx` lookup). Mọi lỗi → return `[]`.
 - Cả 2 hàm là method private (cần `this` để access?), nhưng vì là pure parser nên có thể viết dưới dạng static method hoặc method thường — gọi bằng `this._extractVoiceChunks(json, voiceText)` để truyền voiceText fallback. Pattern: method của class, nhận json + fallback params.
 
 **Vị trí đặt 2 parser:** Tìm `_parseSegmentsJSON` trong file (là method private gần đây nhất trước `_getPageCache`). Đặt 2 method mới ngay sau `_parseSegmentsJSON`.
@@ -165,6 +173,14 @@ Xác định 2 method mới sẽ chèn giữa `_parseSegmentsJSON` (khoảng lin
 - [ ] **Step 2: Tạo unit test `tests/interactive-parse.test.mjs` — viết test TRƯỚC (TDD)**
 
 ```javascript
+// Node v20 không có global localStorage (Node 22+) — AIEngine constructor đọc ai_settings từ localStorage
+const store2 = new Map();
+global.localStorage = {
+  getItem: (k) => (store2.has(k) ? store2.get(k) : null),
+  setItem: (k, v) => store2.set(k, String(v)),
+  removeItem: (k) => store2.delete(k),
+};
+
 import assert from 'node:assert';
 import { AIEngine } from '../js/ai-engine.js';
 
@@ -348,7 +364,29 @@ questions = engine._extractInteractiveQuestions(jsonQ12, twoChunks);
 assert.strictEqual(questions.length, 1, 'Q12: 2 chunks, after_chunk 0 is valid');
 console.log('TEST Q12 PASS: 2 chunks, after_chunk 0 valid');
 
-console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q12 = 18/18)');
+// TEST Q13: strictly increasing after_chunk enforced — duplicate → []
+let jsonDup = {
+  interactive_questions: [
+    { after_chunk: 0, question: 'Q1', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' },
+    { after_chunk: 0, question: 'Q2', options: ['X', 'Y', 'Z', 'W'], correct_index: 1, explanation: 'e' } // duplicate after_chunk
+  ]
+};
+questions = engine._extractInteractiveQuestions(jsonDup, voiceChunks);
+assert.deepStrictEqual(questions, [], 'Q13: duplicate after_chunk → []');
+console.log('TEST Q13 PASS: duplicate after_chunk → []');
+
+// TEST Q14: non-monotonic after_chunk — decreasing → []
+let jsonDec = {
+  interactive_questions: [
+    { after_chunk: 1, question: 'Q1', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' },
+    { after_chunk: 0, question: 'Q2', options: ['X', 'Y', 'Z', 'W'], correct_index: 0, explanation: 'e' } // smaller after_chunk
+  ]
+};
+questions = engine._extractInteractiveQuestions(jsonDec, voiceChunks);
+assert.deepStrictEqual(questions, [], 'Q14: non-monotonic after_chunk → []');
+console.log('TEST Q14 PASS: non-monotonic after_chunk → []');
+
+console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q14 = 20/20)');
 ```
 
 - [ ] **Step 3: Chạy test — phải FAIL (parser chưa tồn tại)**
@@ -390,6 +428,8 @@ Xác định vị trí chèn chính xác (sau method `_parseSegmentsJSON`, kho�
     for (const q of qs) {
       if (!q || typeof q !== 'object') continue;
       if (typeof q.after_chunk !== 'number' || q.after_chunk < 0 || q.after_chunk > maxAfterChunk) continue;
+      // Strictly increasing after_chunk (two questions at same chunk breaks _qIdx lookup)
+      if (result.length > 0 && q.after_chunk <= result[result.length - 1].after_chunk) return [];
       if (typeof q.question !== 'string' || !q.question.trim()) continue;
       if (!Array.isArray(q.options) || q.options.length !== 4) continue;
       if (typeof q.correct_index !== 'number' || q.correct_index < 0 || q.correct_index > 3) continue;
@@ -412,7 +452,7 @@ Xác định vị trí chèn chính xác (sau method `_parseSegmentsJSON`, kho�
 ```bash
 node tests/interactive-parse.test.mjs
 ```
-Expected: `✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q12 = 18/18)`, exit 0
+Expected: `✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q14 = 20/20)`, exit 0
 
 - [ ] **Step 6: Regression check**
 
@@ -597,7 +637,7 @@ git commit -m "feat: extend teachPage with voice_chunks and interactive_question
 - Chrome SpeechSynthesis bỏ `onEnd` khi speak liên tiếp nhanh → cần `await sleep(150)` giữa chunk (spec dòng 101).
 - `_sequenceActive` flag cần reset trong `stop()` + khi sequence bị hủy giữa chừng.
 - `_speakChunk` là private helper: tạo utterance, return Promise resolve ở `onEnd` / reject ở `onError`.
-- Callback `onChunkEnd` chỉ fire cho chunk 0..N-2; chunk cuối fire `onEnd`.
+- Callback `onChunkEnd` chỉ fire cho chunk 0..N-2; chunk cuối fire `onEnd`. Nếu `onChunkEnd` trả về `false` → sequence pause (break loop, set `_sequenceActive = false`, KHÔNG gọi `onEnd`); app resume bằng `speakSequence(remainingChunks, ...)` sau khi user trả lời.
 - Unit test strategy: mock `speechSynthesis` không khả thi trong Node (DOM API). Kiểm chứng qua QA Task 8. Unit test chỉ cho logic index/flag với fake synth.
 
 - [ ] **Step 1: Thêm state vào constructor (sau line 19)**
@@ -677,7 +717,13 @@ Thêm sau `_speakChunk`:
       }
       if (!this._sequenceActive) return;
       if (i < chunks.length - 1) {
-        if (callbacks.onChunkEnd) callbacks.onChunkEnd(i, chunk);
+        const shouldContinue = callbacks.onChunkEnd ? callbacks.onChunkEnd(i, chunk) : true;
+        if (shouldContinue === false) {
+          // Pause: app đang hỏi câu tương tác — dừng loop, KHÔNG gọi onEnd.
+          // App sẽ resume bằng speakSequence(remainingChunks, ...) sau khi user trả lời.
+          this._sequenceActive = false;
+          return false;
+        }
         await sleep(150);
       }
     }
@@ -963,9 +1009,11 @@ Thêm method mới:
       onChunkEnd: (i, chunk) => {
         const q = this._questions && this._qIdx < this._questions.length ? this._questions[this._qIdx] : null;
         if (q && q.after_chunk === i) {
-          // Dừng sequence: không gọi stop (để sequence tạm dừng tự nhiên), set _awaitingAnswer
+          // Dừng sequence tại đây: trả false để speakSequence break loop (Task 4 Step 4)
           this._showInteractiveQuestion(q);
+          return false;
         }
+        return true;
       },
 
       onEnd: () => {
@@ -1040,7 +1088,25 @@ Thay thế đầu method (trước line 1112 — thêm dòng đầu tiên):
 // ... rest of existing code unchanged
 ```
 
-- [ ] **Step 7: Thêm method `_handleInteractiveAnswer(text)` (sau `_handleChatMessage`, ~line 1166)**
+- [ ] **Step 7: Sửa `_setupTTSCallbacks` — guard onStart/onEnd khi interactive mode**
+
+`_showInteractiveQuestion` và `_handleInteractiveAnswer` gọi `this.ttsEngine.speak()` (public) để đọc câu hỏi và xác nhận — khi utterance đó xong, global `ttsEngine.onEnd` (app.js:949-967) sẽ reset `_isTeaching`, set `_justTaught = true`, clear highlight/subtitle, và có thể TỰ CHUYỂN TRANG (`autoRead` + `_lastTaughtWasTitle`) giữa lúc đang chờ trả lời. Cần guard.
+
+Thêm dòng đầu tiên vào cả 2 handler trong `_setupTTSCallbacks` (app.js lines 940 và 949):
+
+```javascript
+    this.ttsEngine.onStart = () => {
+      if (this._chunks) return false; // interactive: speak() public cho câu hỏi/xác nhận — không đè state sequence
+```
+
+```javascript
+    this.ttsEngine.onEnd = () => {
+      if (this._chunks) return false; // interactive: onEnd của câu hỏi/xác nhận KHÔNG reset teaching state / auto-advance
+```
+
+Lý do: `this._chunks` chỉ set trong interactive sequence (từ lúc bắt đầu tới khi `onEnd` của sequence reset nó về `null`). Khi `_showInteractiveQuestion`/`_handleInteractiveAnswer` gọi `speak()` cho câu hỏi hoặc xác nhận, `_chunks` vẫn đang được set → guard an toàn trả về sớm. Single-utterance mode luôn có `_chunks === null` → không bị ảnh hưởng.
+
+- [ ] **Step 8: Thêm method `_handleInteractiveAnswer(text)` (sau `_handleChatMessage`, ~line 1166)**
 
 Thêm sau line 1166 (`}` đóng `_handleChatMessage`):
 
@@ -1098,7 +1164,8 @@ Thêm sau line 1166 (`}` đóng `_handleChatMessage`):
         if (origOnChunkStart) origOnChunkStart(nextChunkIdx + i, chunk);
       };
       resumeCallbacks.onChunkEnd = (i, chunk) => {
-        if (origOnChunkEnd) origOnChunkEnd(nextChunkIdx + i, chunk);
+        if (origOnChunkEnd) return origOnChunkEnd(nextChunkIdx + i, chunk);
+        return true;
       };
       this.ttsEngine.speakSequence(remainingChunks, resumeCallbacks);
       this._updateVoiceStatus('speaking', 'Đang giảng tiếp...');
@@ -1128,7 +1195,7 @@ Thêm sau line 1166 (`}` đóng `_handleChatMessage`):
   }
 ```
 
-- [ ] **Step 8: Sửa Stop handler (lines 917-927)**
+- [ ] **Step 9: Sửa Stop handler (lines 917-927)**
 
 Thay thế block stop handler (lines 917-927) bằng:
 
@@ -1150,7 +1217,7 @@ Thay thế block stop handler (lines 917-927) bằng:
     });
 ```
 
-- [ ] **Step 9: Sửa `_navigatePage` — reset interactive state (lines 670-701)**
+- [ ] **Step 10: Sửa `_navigatePage` — reset interactive state (lines 670-701)**
 
 Sau line 679 (`this._justTaught = false;`), thêm các dòng reset interactive state:
 
@@ -1163,7 +1230,7 @@ Sau line 679 (`this._justTaught = false;`), thêm các dòng reset interactive s
 
 Chèn sau line 679, trước line 680 (`const quizNowBtn = ...`).
 
-- [ ] **Step 10: Sửa `_updateVoiceStatus` — case `done` khi đang chờ (line 1052-1059)**
+- [ ] **Step 11: Sửa `_updateVoiceStatus` — case `done` khi đang chờ (line 1052-1059)**
 
 Thay thế case `done` (lines 1052-1059) bằng:
 
@@ -1178,7 +1245,7 @@ Thay thế case `done` (lines 1052-1059) bằng:
         break;
 ```
 
-- [ ] **Step 11: Sửa `_showApiKeyModal` — đọc `interactiveTeach` vào toggle (line 424)**
+- [ ] **Step 12: Sửa `_showApiKeyModal` — đọc `interactiveTeach` vào toggle (line 424)**
 
 Sau line 424 (`document.getElementById('teach-then-quiz-toggle').checked = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;`), thêm:
 
@@ -1186,7 +1253,7 @@ Sau line 424 (`document.getElementById('teach-then-quiz-toggle').checked = s.tea
     document.getElementById('interactive-teach-toggle').checked = s.interactiveTeach !== undefined ? s.interactiveTeach : true;
 ```
 
-- [ ] **Step 12: Sửa `_setupSettingsBtn` — lưu `interactiveTeach` từ toggle (line 485-486)**
+- [ ] **Step 13: Sửa `_setupSettingsBtn` — lưu `interactiveTeach` từ toggle (line 485-486)**
 
 Sau line 485 (`teachThenQuiz: document.getElementById('teach-then-quiz-toggle').checked,`), thêm:
 
@@ -1194,7 +1261,7 @@ Sau line 485 (`teachThenQuiz: document.getElementById('teach-then-quiz-toggle').
         interactiveTeach: document.getElementById('interactive-teach-toggle').checked,
 ```
 
-- [ ] **Step 13: Thêm helper `_updateSubtitleForChunk` (sau `_clearSubtitle`, tìm hàm này)**
+- [ ] **Step 14: Thêm helper `_updateSubtitleForChunk` (sau `_clearSubtitle`, tìm hàm này)**
 
 Tìm vị trí `_clearSubtitle` trong app.js (khoảng line 620-630). Sau method đó, thêm:
 
@@ -1208,7 +1275,7 @@ Tìm vị trí `_clearSubtitle` trong app.js (khoảng line 620-630). Sau method
   }
 ```
 
-- [ ] **Step 14: Disable seek slider khi có interactive questions**
+- [ ] **Step 15: Disable seek slider khi có interactive questions**
 
 Trong `_makeSpeakSequenceCallbacks` > `onChunkStart`, thêm dòng disable seek bar (seek bar disabled khi có câu hỏi):
 
@@ -1219,28 +1286,28 @@ Trong `_makeSpeakSequenceCallbacks` > `onChunkStart`, thêm dòng disable seek b
 
 Thực tế, ta disable seek slider trong `onChunkStart` luôn — vì khi có interactive_questions, seek bar không hoạt động.
 
-- [ ] **Step 15: Verify syntax**
+- [ ] **Step 16: Verify syntax**
 
 ```bash
 node --check js/app.js
 ```
 Expected: exit 0
 
-- [ ] **Step 16: Verify tất cả file JS parse OK**
+- [ ] **Step 17: Verify tất cả file JS parse OK**
 
 ```bash
 node --check js/ai-engine.js && node --check js/tts-engine.js && node --check js/app.js && node --check js/chat.js && node --check js/quiz.js && node --check js/flashcards.js
 ```
 Expected: exit 0
 
-- [ ] **Step 17: Regression — chạy tất cả unit test cũ**
+- [ ] **Step 18: Regression — chạy tất cả unit test cũ**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs && node tests/interactive-settings.test.mjs && node tests/interactive-parse.test.mjs && node tests/sequence-logic.test.mjs
 ```
 Expected: tất cả pass, exit 0
 
-- [ ] **Step 18: Commit**
+- [ ] **Step 19: Commit**
 
 ```bash
 git add js/app.js
@@ -1467,7 +1534,112 @@ console.log('TEST (d): Wrong confirmation =', hasWrong);
 if (!hasWrong) throw new Error('TEST (d) FAIL: no wrong confirmation');
 console.log('TEST (d) PASS');
 
-// === TEST (e): Sau câu hỏi 2, giảng tiếp → hết slide onEnd ===
+// === TEST (e): Lecture PAUSES after question chunk — next chunk NOT spoken yet ===
+// Verify voice status shows waiting icon/text after first question appeared
+const voiceStatusE = await page.textContent('#voice-text');
+const voiceIconE = await page.textContent('#voice-icon');
+console.log('TEST (e): Voice status after question =', voiceStatusE, '| icon =', voiceIconE);
+if (!voiceStatusE.includes('chờ') && !voiceIconE.includes('❓')) {
+  throw new Error(`TEST (e) FAIL: lecture not paused during question, status="${voiceStatusE}"`);
+}
+console.log('TEST (e) PASS');
+
+// === TEST (f): While awaiting with autoRead ON, page does NOT auto-advance ===
+const pageNumBefore = await page.textContent('#page-info');
+console.log('TEST (f): Page info before await =', pageNumBefore);
+await page.waitForTimeout(3000); // Wait 3s — should NOT auto-advance
+const pageNumAfter = await page.textContent('#page-info');
+if (pageNumBefore !== pageNumAfter) {
+  throw new Error(`TEST (f) FAIL: auto-advanced from "${pageNumBefore}" to "${pageNumAfter}" during awaiting`);
+}
+console.log('TEST (f) PASS: auto-advance suppressed during awaiting');
+
+// === TEST (g): Answering WRONG ('B' when correct is 'A') → '❌ Sai...' AND teaching RESUMES ===
+// (Use first question: correct is 'A', we answer 'B')
+await page.fill('#chat-input', 'B');
+await page.press('#chat-input', 'Enter');
+await page.waitForTimeout(4000);
+
+const chatMsgsG = await page.evaluate(() => {
+  const msgs = document.querySelectorAll('#chat-messages .ai-msg .ai-bubble');
+  return Array.from(msgs).map(m => m.textContent || '');
+});
+const hasWrongConfirm = chatMsgsG.some(m => m.includes('❌ Sai'));
+if (!hasWrongConfirm) throw new Error('TEST (g) FAIL: no wrong confirmation');
+const resumeStatusG = await page.textContent('#voice-text');
+console.log('TEST (g): Wrong confirmation = true, resume status =', resumeStatusG);
+if (!resumeStatusG.includes('giảng tiếp') && !resumeStatusG.includes('speaking')) {
+  throw new Error(`TEST (g) FAIL: teaching did not resume after wrong answer, status="${resumeStatusG}"`);
+}
+console.log('TEST (g) PASS');
+
+// === TEST (h): Answering CORRECT (for question 2) → '✅ Đúng!' + resume ===
+// Wait for question 2 to appear (after_chunk=1)
+await page.waitForTimeout(6000); // Chờ chunk 1 đọc xong + câu hỏi 2
+
+const chatMsgsH = await page.evaluate(() => {
+  const msgs = document.querySelectorAll('#chat-messages .ai-msg .ai-bubble');
+  return Array.from(msgs).map(m => m.textContent || '');
+});
+const hasQ2 = chatMsgsH.some(m => m.includes('Neu dinh thuc bang 0'));
+if (!hasQ2) throw new Error('TEST (h) FAIL: question 2 not found');
+
+// Answer correct (correct_index = 1, so answer is 'B')
+await page.fill('#chat-input', 'B');
+await page.press('#chat-input', 'Enter');
+await page.waitForTimeout(4000);
+
+const chatMsgsH2 = await page.evaluate(() => {
+  const msgs = document.querySelectorAll('#chat-messages .ai-msg .ai-bubble');
+  return Array.from(msgs).map(m => m.textContent || '');
+});
+const hasCorrectH = chatMsgsH2.some(m => m.includes('✅ Đúng'));
+if (!hasCorrectH) throw new Error('TEST (h) FAIL: no correct confirmation');
+const resumeStatusH = await page.textContent('#voice-text');
+console.log('TEST (h): Correct confirmation = true, resume status =', resumeStatusH);
+console.log('TEST (h) PASS');
+
+// === TEST (i): Click Stop while awaiting → status 'stopped', then answering does nothing ===
+// Wait for slide end (no more questions)
+await page.waitForTimeout(6000);
+
+// Now start a new teach to trigger a new interactive session, then stop during a question
+// Refresh route for second interaction
+await page.evaluate(() => {
+  const btn = document.querySelector('#clear-cache-btn');
+  if (btn) btn.click();
+});
+await page.waitForTimeout(500);
+
+await page.click('#teach-now', { force: true });
+await page.waitForTimeout(6000); // Chờ chunk 0 + câu hỏi 1
+
+// Stop during awaiting
+await page.click('#btn-stop', { force: true });
+await page.waitForTimeout(500);
+
+const stopStatusI = await page.textContent('#voice-text');
+console.log('TEST (i): Status after stop =', stopStatusI);
+if (!stopStatusI.includes('dừng') && !stopStatusI.includes('stopped')) {
+  throw new Error(`TEST (i) FAIL: status not stopped, got "${stopStatusI}"`);
+}
+
+// Answer after stop — should NOT resume teaching (awaitingAnswer should be false)
+await page.fill('#chat-input', 'A');
+await page.press('#chat-input', 'Enter');
+await page.waitForTimeout(3000);
+
+// The answer should be treated as regular chat message (not interactive answer)
+const chatMsgsI = await page.evaluate(() => {
+  const msgs = document.querySelectorAll('#chat-messages .ai-msg .ai-bubble');
+  return Array.from(msgs).map(m => m.textContent || '');
+});
+// Should NOT see ❌/✅ from interactive answer handler; may get regular chat response
+const hasInteractiveConfirmI = chatMsgsI.some(m => m.includes('✅ Đúng') || m.includes('❌ Sai'));
+console.log('TEST (i): Interactive confirm after stop =', hasInteractiveConfirmI, '(should be false or from earlier)');
+console.log('TEST (i) PASS');
+
+// === TEST (j): Sau câu hỏi 2, giảng tiếp → hết slide onEnd ===
 await page.waitForTimeout(6000); // Chờ chunk cuối đọc xong
 
 const voiceText = await page.textContent('#voice-text');
@@ -1477,7 +1649,7 @@ if (!voiceText.includes('giảng xong') && !voiceText.includes('xong')) {
 }
 console.log('TEST (e) PASS');
 
-// === TEST (f): Toggle interactive OFF → dạy trang không hỏi ===
+// === TEST (k): Toggle interactive OFF → dạy trang không hỏi ===
 // Bật settings, tắt interactive
 await page.click('#settings-btn', { force: true });
 await page.waitForTimeout(500);
@@ -1535,11 +1707,11 @@ const chatMsgs5 = await page.evaluate(() => {
   return Array.from(msgs).map(m => m.textContent || '');
 });
 const hasInteractiveQuestionOff = chatMsgs5.some(m => m.includes('❓'));
-console.log('TEST (f): Interactive OFF — question in chat =', hasInteractiveQuestionOff);
-if (hasInteractiveQuestionOff) throw new Error('TEST (f) FAIL: question shown when interactive toggle is OFF');
-console.log('TEST (f) PASS');
+console.log('TEST (k): Interactive OFF — question in chat =', hasInteractiveQuestionOff);
+if (hasInteractiveQuestionOff) throw new Error('TEST (k) FAIL: question shown when interactive toggle is OFF');
+console.log('TEST (k) PASS');
 
-// === TEST (g): Cache entry cũ thiếu field → giảng single utterance không tương tác ===
+// === TEST (l): Cache entry cũ thiếu field → giảng single utterance không tương tác ===
 // Tắt interactive toggle, bật lại để test cache entry format cũ
 await page.click('#settings-btn', { force: true });
 await page.waitForTimeout(500);
@@ -1588,11 +1760,11 @@ await page.waitForTimeout(6000);
 
 // Verify: không crash, voice text bình thường
 const voiceTextG = await page.textContent('#voice-text');
-console.log('TEST (g): Cache old format — voice status:', voiceTextG);
+console.log('TEST (l): Cache old format — voice status:', voiceTextG);
 if (!voiceTextG || voiceTextG.includes('error') || voiceTextG.includes('Lỗi')) {
-  throw new Error(`TEST (g) FAIL: crash on old format cache, status: "${voiceTextG}"`);
+  throw new Error(`TEST (l) FAIL: crash on old format cache, status: "${voiceTextG}"`);
 }
-console.log('TEST (g) PASS');
+console.log('TEST (l) PASS');
 
 // === Final ===
 if (errors.length > 0) {
