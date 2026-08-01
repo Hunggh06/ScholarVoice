@@ -31,6 +31,7 @@ export class QuizManager {
     this.correctCount = 0;
     this.answered = false;
     this._generating = false;
+    this._genSeq = 0;
 
     this._setupEvents();
   }
@@ -62,9 +63,11 @@ export class QuizManager {
   /** Gọi khi tab quiz mở — tự sinh nếu chưa có quiz cho trang hiện tại */
   _onTabOpened() {
     this._syncForPage(this.app.pdfViewer.currentPage);
-    if (!this.questions || this.questions.length === 0) {
-      this._generateForCurrentPage();
-    }
+    this.questions = [];
+    this.currentIndex = 0;
+    this.correctCount = 0;
+    this.answered = false;
+    this._generateForCurrentPage();
   }
 
   /** App gọi khi đổi trang — cập nhật tiêu đề + điểm, tự sinh nếu tab đang mở */
@@ -75,6 +78,8 @@ export class QuizManager {
       this.currentIndex = 0;
       this.correctCount = 0;
       this.answered = false;
+      this._genSeq++;
+      this._generating = false;
       this._generateForCurrentPage();
     }
   }
@@ -124,6 +129,7 @@ export class QuizManager {
     }
     if (this._generating) return;
     this._generating = true;
+    const genId = ++this._genSeq;
 
     // Không dừng giảng nếu đang giảng (như hành vi chat)
     if (!this.app._isTeaching) {
@@ -143,9 +149,11 @@ export class QuizManager {
       const pageText = await this.app.pdfViewer.getPageText();
       const questions = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64);
 
-      if (this.app.pdfViewer.currentPage !== pageNum) {
-        this.quizLoading.classList.add('hidden');
-        this._resetToEmpty();
+      if (this.app.pdfViewer.currentPage !== pageNum || genId !== this._genSeq) {
+        if (genId === this._genSeq) {
+          this.quizLoading.classList.add('hidden');
+          this._resetToEmpty();
+        }
         return;
       }
 
@@ -166,7 +174,7 @@ export class QuizManager {
       this.quizStartBtn.disabled = false;
       this.app._showToast('Không tạo được câu hỏi. Bấm 🔄 để thử lại.', 'error');
     } finally {
-      this._generating = false;
+      if (genId === this._genSeq) this._generating = false;
     }
   }
 
