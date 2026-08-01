@@ -31,6 +31,7 @@ export class AIEngine {
     this.pageCache = new Map();
     // Cache quiz theo trang: key `quiz_<page>_<provider>`
     this.quizCache = new Map();
+    this.flashcardCache = new Map();
     this.teachingStyle = saved.teachingStyle || 'medium';
     this.customStyle = saved.customStyle || '';
     this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.teachThenQuiz : true;
@@ -80,6 +81,7 @@ export class AIEngine {
     if (oldProvider !== this.provider) {
       this.pageCache.clear();
       this.quizCache.clear();
+      this.flashcardCache.clear();
       this.docContext = [];
       this.clearChatHistory();
     }
@@ -590,6 +592,59 @@ Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
     return questions;
   }
 
+  /**
+   * Tạo flashcards cho trang hiện tại
+   * @param {number} pageNum
+   * @param {string} pageText - text đã trích xuất của trang
+   * @param {string|null} imageBase64 - ảnh trang (provider có vision thì dùng)
+   * @param {number} [count=5] - số thẻ (3/5/10)
+   * @returns {Promise<Array>} mảng [{term, definition}]
+   */
+  async generateFlashcards(pageNum, pageText, imageBase64, count = 5) {
+    const n = [3, 5, 10].includes(count) ? count : 5;
+    const cacheKey = `flash_${pageNum}_${this.provider}_${n}`;
+    const cached = this.flashcardCache.get(cacheKey);
+    if (cached) return cached;
+
+    if (!pageText || !pageText.trim()) {
+      throw new Error('Trang này không có nội dung chữ để tạo thẻ học.');
+    }
+
+    const systemPrompt = `Bạn là giảng viên tạo thẻ học (flashcards) để giúp sinh viên ôn tập.
+Trích CHÍNH XÁC ${n} thuật ngữ hoặc khái niệm quan trọng từ nội dung trang tài liệu.
+Với mỗi thuật ngữ, viết định nghĩa ngắn gọn (1-2 câu), dễ hiểu.
+TUYỆT ĐỐI CHỈ dùng kiến thức có trong nội dung trang, không bịa thêm.
+Trả về JSON duy nhất, không thêm bất kỳ text nào ngoài JSON:
+{
+  "cards": [
+    {"term": "Thuật ngữ 1", "definition": "Định nghĩa ngắn gọn bằng tiếng Việt."},
+    {"term": "Thuật ngữ 2", "definition": "Định nghĩa ngắn gọn bằng tiếng Việt."}
+  ]
+}
+NGÔN NGỮ: Luôn dùng TIẾNG VIỆT.
+definition phải đọc được bằng giọng: KHÔNG ký hiệu toán học, KHÔNG markdown, KHÔNG ký tự đặc biệt.`;
+
+    const userPrompt = `Nội dung trang tài liệu (dòng bắt đầu bằng ## là tiêu đề, dòng trống ngăn cách các phần):
+
+${pageText}
+
+Hãy tạo flashcards theo đúng định dạng JSON yêu cầu ở trên.`;
+
+    const hasImage = imageBase64 && imageBase64.length > 100;
+    const hasVision = this.hasVision();
+    const effectiveImage = (hasImage && hasVision) ? imageBase64 : null;
+
+    const rawResponse = await this._callAPI(userPrompt, effectiveImage, systemPrompt, true, pageText);
+
+    const cards = validateFlashcards(rawResponse);
+    if (cards.length === 0) {
+      throw new Error('AI không tạo được thẻ học hợp lệ. Bấm 🔄 để thử lại.');
+    }
+
+    this.flashcardCache.set(cacheKey, cards);
+    return cards;
+  }
+
   /** Xoá quiz cache của một trang theo prefix (mọi số câu) — dùng cho nút "Làm lại" */
   clearQuizForPage(pageNum) {
     const prefix = `quiz_${pageNum}_${this.provider}_`;
@@ -598,9 +653,18 @@ Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
     }
   }
 
+  /** Xoá flashcard cache của một trang theo prefix (mọi số thẻ) — dùng cho nút "Làm mới" */
+  clearFlashcardsForPage(pageNum) {
+    const prefix = `flash_${pageNum}_${this.provider}_`;
+    for (const key of this.flashcardCache.keys()) {
+      if (key.startsWith(prefix)) this.flashcardCache.delete(key);
+    }
+  }
+
   clearCache() {
     this.pageCache.clear();
     this.quizCache.clear();
+    this.flashcardCache.clear();
     this.docContext = [];
     this.clearChatHistory();
   }
@@ -975,6 +1039,46 @@ export function validateQuizQuestions(raw) {
       out.push({ type: 'tf', question, correct: q.correct, explanation });
     }
     // type khác → bỏ qua câu đó
+  }
+  return out;
+}
+
+/**
+ * Validate JSON response từ AI → mảng [{term, definition}]
+ * Pattern theo validateQuizQuestions
+ */
+export function validateFlashcards(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Thử lấy block JSON từ markdown ```json ... ```
+    const m = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (m) {
+      try { parsed = JSON.parse(m[1]); } catch { /* fallback */ }
+    }
+  }
+  if (!parsed) {
+    // Fallback cuối: tìm object có "cards"
+    const m2 = raw.match(/\{[\s\S]*"cards"[\s\S]*\}/);
+    if (m2) {
+      try { parsed = JSON.parse(m2[0]); } catch { /* fallback */ }
+    }
+  }
+
+  const list = parsed && Array.isArray(parsed.cards) ? parsed.cards : [];
+  const out = [];
+  for (const c of list) {
+    if (!c || typeof c !== 'object') continue;
+    const term = typeof c.term === 'string' ? c.term.trim() : '';
+    const definition = typeof c.definition === 'string' ? c.definition.trim() : '';
+    if (!term || !definition) continue;
+    out.push({
+      term,
+      definition: definition.length > 200 ? definition.substring(0, 200) : definition
+    });
   }
   return out;
 }
