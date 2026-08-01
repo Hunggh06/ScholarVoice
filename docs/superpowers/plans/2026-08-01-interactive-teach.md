@@ -16,16 +16,16 @@
 
 ## Trước khi bắt đầu
 
-- [ ] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
+- [x] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
   ```bash
   git status
   ```
-- [ ] Baseline — tất cả file JS hiện tại parse OK:
+- [x] Baseline — tất cả file JS hiện tại parse OK:
   ```bash
   node --check js/ai-engine.js && node --check js/tts-engine.js && node --check js/app.js && node --check js/chat.js && node --check js/quiz.js && node --check js/flashcards.js
   ```
   Expected: exit 0
-- [ ] Chạy regression tests hiện có:
+- [x] Chạy regression tests hiện có:
   ```bash
   node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs
   ```
@@ -163,7 +163,7 @@ git commit -m "feat: add interactiveTeach setting to AIEngine with unit tests"
 
 **Vị trí đặt 2 parser:** Tìm `_parseSegmentsJSON` trong file (là method private gần đây nhất trước `_getPageCache`). Đặt 2 method mới ngay sau `_parseSegmentsJSON`.
 
-- [ ] **Step 1: Đọc vị trí `_parseSegmentsJSON` để xác định điểm chèn chính xác**
+- [x] **Step 1: Đọc vị trí `_parseSegmentsJSON` để xác định điểm chèn chính xác**
 
 ```bash
 grep -n '_parseSegmentsJSON\|_getPageCache\|_updateContext' js/ai-engine.js
@@ -171,7 +171,7 @@ grep -n '_parseSegmentsJSON\|_getPageCache\|_updateContext' js/ai-engine.js
 
 Xác định 2 method mới sẽ chèn giữa `_parseSegmentsJSON` (khoảng line 430) và `_getPageCache` (line 459).
 
-- [ ] **Step 2: Tạo unit test `tests/interactive-parse.test.mjs` — viết test TRƯỚC (TDD)**
+- [x] **Step 2: Tạo unit test `tests/interactive-parse.test.mjs` — viết test TRƯỚC (TDD)**
 
 ```javascript
 // Node v20 không có global localStorage (Node 22+) — AIEngine constructor đọc ai_settings từ localStorage
@@ -391,14 +391,14 @@ console.log('TEST Q14 PASS: non-monotonic after_chunk → []');
 console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q14 = 20/20)');
 ```
 
-- [ ] **Step 3: Chạy test — phải FAIL (parser chưa tồn tại)**
+- [x] **Step 3: Chạy test — phải FAIL (parser chưa tồn tại)**
 
 ```bash
 node tests/interactive-parse.test.mjs
 ```
 Expected: FAIL với `TypeError: engine._extractVoiceChunks is not a function`
 
-- [ ] **Step 4: Implement `_extractVoiceChunks` (chèn sau `_parseSegmentsJSON`)**
+- [x] **Step 4: Implement `_extractVoiceChunks` (chèn sau `_parseSegmentsJSON`)**
 
 Xác định vị trí chèn chính xác (sau method `_parseSegmentsJSON`, khoảng line 430-448). Thêm 2 method mới:
 
@@ -449,21 +449,21 @@ Xác định vị trí chèn chính xác (sau method `_parseSegmentsJSON`, kho�
   }
 ```
 
-- [ ] **Step 5: Chạy test — phải PASS**
+- [x] **Step 5: Chạy test — phải PASS**
 
 ```bash
 node tests/interactive-parse.test.mjs
 ```
 Expected: `✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q14 = 20/20)`, exit 0
 
-- [ ] **Step 6: Regression check**
+- [x] **Step 6: Regression check**
 
 ```bash
 node --check js/ai-engine.js && node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs && node tests/interactive-settings.test.mjs
 ```
 Expected: tất cả pass, exit 0
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add js/ai-engine.js tests/interactive-parse.test.mjs
@@ -1818,7 +1818,7 @@ git commit -m "test: add QA for interactive teach flow"
 **Files:**
 - Modify: `README.md` (sau line `- ⏱️ **Giảng thông minh**`)
 
-- [ ] **Step 1: Thêm bullet feature mới vào README.md**
+- [x] **Step 1: Thêm bullet feature mới vào README.md**
 
 Sau line 18 (`- ⏱️ **Giảng thông minh** — slide chỉ có tiêu đề được giới thiệu ngắn gọn và tự động chuyển trang khi bật auto-read`), thêm:
 
@@ -1826,11 +1826,11 @@ Sau line 18 (`- ⏱️ **Giảng thông minh** — slide chỉ có tiêu đề �
 - 🤝 **Tương tác hỏi đáp khi giảng** — AI chủ động đặt câu hỏi trắc nghiệm giữa bài giảng, người học trả lời trong chat, AI xác nhận và giải thích ngay
 ```
 
-- [ ] **Step 2: Flip tất cả plan checkboxes từ `[ ]` thành `[x]`**
+- [x] **Step 2: Flip tất cả plan checkboxes từ `[ ]` thành `[x]`**
 
 Đánh dấu tất cả checkbox trong file plan này thành `[x]` (sau khi tất cả task đã hoàn thành và verify pass).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md
@@ -1905,27 +1905,27 @@ Expected: tất cả PASS, exit 0.
 
 ### F3: Code quality review
 
-- [ ] `node --check` tất cả 6 file JS:
+- [x] `node --check` tất cả 6 file JS:
 
 ```bash
 node --check js/ai-engine.js && node --check js/tts-engine.js && node --check js/app.js && node --check js/chat.js && node --check js/quiz.js && node --check js/flashcards.js
 ```
 Expected: exit 0
 
-- [ ] Không có console.error dư thừa (QA test filter SKIP_ERRS).
-- [ ] Không import vòng (chat.js dùng `document.getElementById` trực tiếp).
-- [ ] `_genSeq` pattern không bị phá (app.js không gọi generateQuiz — không liên quan).
-- [ ] Cache key không đổi (`page_${pageNum}_${this.provider}_${this.teachingStyle}` — vẫn giữ provider).
-- [ ] `_sequenceActive` được reset trong stop() và _navigatePage.
+- [x] Không có console.error dư thừa (QA test filter SKIP_ERRS).
+- [x] Không import vòng (chat.js dùng `document.getElementById` trực tiếp).
+- [x] `_genSeq` pattern không bị phá (app.js không gọi generateQuiz — không liên quan).
+- [x] Cache key không đổi (`page_${pageNum}_${this.provider}_${this.teachingStyle}` — vẫn giữ provider).
+- [x] `_sequenceActive` được reset trong stop() và _navigatePage.
 
 **VERDICT:** PENDING (chạy sau khi implement).
 
 ### F4: Security review
 
-- [ ] Không expose API key (không thay đổi logic API call).
-- [ ] XSS: `addAIMessage` dùng `_escapeHtml` (chat.js:68-84) — câu hỏi từ AI response vẫn được escape an toàn.
-- [ ] Không thêm dependency mới.
-- [ ] Không thay đổi `server.py`.
+- [x] Không expose API key (không thay đổi logic API call).
+- [x] XSS: `addAIMessage` dùng `_escapeHtml` (chat.js:68-84) — câu hỏi từ AI response vẫn được escape an toàn.
+- [x] Không thêm dependency mới.
+- [x] Không thay đổi `server.py`.
 
 **VERDICT:** APPROVE (không rủi ro bảo mật mới).
 
