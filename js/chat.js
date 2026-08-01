@@ -31,6 +31,23 @@ export class ChatManager {
     });
   }
 
+  switchTab(name) {
+    const showChat = name === 'chat';
+    const chatArea = document.getElementById('chat-area');
+    const quizArea = document.getElementById('quiz-area');
+    const flashArea = document.getElementById('flash-area');
+    const tabChat = document.getElementById('tab-chat');
+    const tabQuiz = document.getElementById('tab-quiz');
+    const tabFlash = document.getElementById('tab-flash');
+
+    if (chatArea) chatArea.classList.toggle('hidden', !showChat);
+    if (quizArea) quizArea.classList.add('hidden');
+    if (flashArea) flashArea.classList.add('hidden');
+    if (tabChat) tabChat.classList.toggle('active', showChat);
+    if (tabQuiz) tabQuiz.classList.remove('active');
+    if (tabFlash) tabFlash.classList.remove('active');
+  }
+
   /** Xử lý gửi tin nhắn */
   _handleSend() {
     const text = this.inputEl.value.trim();
