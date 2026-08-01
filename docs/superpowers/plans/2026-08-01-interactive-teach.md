@@ -43,7 +43,7 @@
 - `clearChatHistory` không cần reset gì thêm — `interactiveTeach` là setting UI, không phải state chat.
 - Constructor đọc từ localStorage `saved.interactiveTeach` (default `true`).
 
-- [ ] **Step 1: Constructor — thêm `this.interactiveTeach` (sau line 37)**
+- [x] **Step 1: Constructor — thêm `this.interactiveTeach` (sau line 37)**
 
 Sau line 37 (`this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.teachThenQuiz : true;`), thêm:
 
@@ -51,7 +51,7 @@ Sau line 37 (`this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.tea
     this.interactiveTeach = saved.interactiveTeach !== undefined ? saved.interactiveTeach : true;
 ```
 
-- [ ] **Step 2: saveSettings — gán setting (sau line 63)**
+- [x] **Step 2: saveSettings — gán setting (sau line 63)**
 
 Sau line 63 (`if (settings.teachThenQuiz !== undefined) this.teachThenQuiz = settings.teachThenQuiz;`), thêm:
 
@@ -59,7 +59,7 @@ Sau line 63 (`if (settings.teachThenQuiz !== undefined) this.teachThenQuiz = set
     if (settings.interactiveTeach !== undefined) this.interactiveTeach = settings.interactiveTeach;
 ```
 
-- [ ] **Step 3: saveSettings — lưu vào localStorage (sau line 78)**
+- [x] **Step 3: saveSettings — lưu vào localStorage (sau line 78)**
 
 Sau line 78 (`teachThenQuiz: this.teachThenQuiz,`), thêm:
 
@@ -67,7 +67,7 @@ Sau line 78 (`teachThenQuiz: this.teachThenQuiz,`), thêm:
       interactiveTeach: this.interactiveTeach,
 ```
 
-- [ ] **Step 4: getSettings — export field (sau line 104)**
+- [x] **Step 4: getSettings — export field (sau line 104)**
 
 Sau line 104 (`teachThenQuiz: this.teachThenQuiz,`), thêm:
 
@@ -75,7 +75,7 @@ Sau line 104 (`teachThenQuiz: this.teachThenQuiz,`), thêm:
       interactiveTeach: this.interactiveTeach,
 ```
 
-- [ ] **Step 5: Unit test — tạo `tests/interactive-settings.test.mjs`**
+- [x] **Step 5: Unit test — tạo `tests/interactive-settings.test.mjs`**
 
 ```javascript
 // Node v20 không có global localStorage (Node 22+) — AIEngine constructor đọc ai_settings từ localStorage
@@ -127,21 +127,21 @@ localStorage.clear();
 console.log('✅ interactive-settings: tất cả test pass (5/5)');
 ```
 
-- [ ] **Step 6: Chạy unit test**
+- [x] **Step 6: Chạy unit test**
 
 ```bash
 node tests/interactive-settings.test.mjs
 ```
 Expected: `✅ interactive-settings: tất cả test pass (5/5)`, exit 0
 
-- [ ] **Step 7: Regression check**
+- [x] **Step 7: Regression check**
 
 ```bash
 node --check js/ai-engine.js && node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs
 ```
 Expected: tất cả pass, exit 0
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add js/ai-engine.js tests/interactive-settings.test.mjs
@@ -642,7 +642,7 @@ git commit -m "feat: extend teachPage with voice_chunks and interactive_question
 - Callback `onChunkEnd` chỉ fire cho chunk 0..N-2; chunk cuối fire `onEnd`. Nếu `onChunkEnd` trả về `false` → sequence pause (break loop, set `_sequenceActive = false`, KHÔNG gọi `onEnd`); app resume bằng `speakSequence(remainingChunks, ...)` sau khi user trả lời.
 - Unit test strategy: mock `speechSynthesis` không khả thi trong Node (DOM API). Kiểm chứng qua QA Task 8. Unit test chỉ cho logic index/flag với fake synth.
 
-- [ ] **Step 1: Thêm state vào constructor (sau line 19)**
+- [x] **Step 1: Thêm state vào constructor (sau line 19)**
 
 Sau line 19 (`this._voiceName = this._voiceId;`), thêm:
 
@@ -651,7 +651,7 @@ Sau line 19 (`this._voiceName = this._voiceId;`), thêm:
     this._currentChunkIndex = 0;
 ```
 
-- [ ] **Step 2: Thêm helper `sleep` (cuối file, ngoài class, trước `export`)**
+- [x] **Step 2: Thêm helper `sleep` (cuối file, ngoài class, trước `export`)**
 
 Thêm trước dòng cuối của file (trước `}` đóng class nếu dùng làm static, hoặc làm standalone function):
 
@@ -663,7 +663,7 @@ function sleep(ms) {
 
 Đặt ở cuối file, sau line 263 (đóng class), trước khi kết thúc module.
 
-- [ ] **Step 3: Thêm method `_speakChunk(text)` private (sau `speak()`, ~line 135)**
+- [x] **Step 3: Thêm method `_speakChunk(text)` private (sau `speak()`, ~line 135)**
 
 Sau line 135 (`}` đóng method `speak`), thêm:
 
@@ -691,7 +691,7 @@ Sau line 135 (`}` đóng method `speak`), thêm:
   }
 ```
 
-- [ ] **Step 4: Thêm method `speakSequence(chunks, callbacks)` (sau `_speakChunk`)**
+- [x] **Step 4: Thêm method `speakSequence(chunks, callbacks)` (sau `_speakChunk`)**
 
 Thêm sau `_speakChunk`:
 
@@ -735,7 +735,7 @@ Thêm sau `_speakChunk`:
   }
 ```
 
-- [ ] **Step 5: Reset `_sequenceActive` trong `stop()` (sửa line 207-213)**
+- [x] **Step 5: Reset `_sequenceActive` trong `stop()` (sửa line 207-213)**
 
 Thay thế method `stop()` (lines 207-213) bằng:
 
@@ -751,14 +751,14 @@ Thay thế method `stop()` (lines 207-213) bằng:
   }
 ```
 
-- [ ] **Step 6: Verify syntax**
+- [x] **Step 6: Verify syntax**
 
 ```bash
 node --check js/tts-engine.js
 ```
 Expected: exit 0
 
-- [ ] **Step 7: Unit test — logic index/flag (Node, không cần DOM)**
+- [x] **Step 7: Unit test — logic index/flag (Node, không cần DOM)**
 
 Vì `speakSequence` dùng `speechSynthesis` (DOM API), unit test full không khả thi trong Node. Tuy nhiên ta test được logic:
 - `_sequenceActive` được set true ở đầu, false ở cuối.
@@ -813,21 +813,21 @@ console.log('TEST 4 PASS: stop reset');
 console.log('✅ sequence-logic: tất cả test pass (4/4)');
 ```
 
-- [ ] **Step 8: Chạy unit test**
+- [x] **Step 8: Chạy unit test**
 
 ```bash
 node tests/sequence-logic.test.mjs
 ```
 Expected: `✅ sequence-logic: tất cả test pass (4/4)`, exit 0
 
-- [ ] **Step 9: Regression check**
+- [x] **Step 9: Regression check**
 
 ```bash
 node --check js/tts-engine.js && node --check js/app.js
 ```
 Expected: exit 0 (app.js import TTSEngine, không lỗi syntax)
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add js/tts-engine.js tests/sequence-logic.test.mjs
@@ -846,7 +846,7 @@ git commit -m "feat: add speakSequence method to TTSEngine with chunk-by-chunk p
 - `ChatManager` KHÔNG có ref tới `quizArea`/`flashArea`/`tabQuiz`/`tabFlash` trong constructor — phải dùng `document.getElementById` trực tiếp.
 - Method này chỉ dùng để chuyển VỀ tab chat (khi có câu hỏi tương tác). Không cần xử lý `_onTabOpened` như QuizManager.
 
-- [ ] **Step 1: Thêm method `switchTab(name)` (sau `_setupEvents`, ~line 16)**
+- [x] **Step 1: Thêm method `switchTab(name)` (sau `_setupEvents`, ~line 16)**
 
 Sau line 16 (`}` đóng `_setupEvents`), thêm:
 
@@ -869,27 +869,27 @@ Sau line 16 (`}` đóng `_setupEvents`), thêm:
   }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 node --check js/chat.js
 ```
 Expected: exit 0
 
-- [ ] **Step 3: Verify switchTab hoạt động (manual) — check với grep**
+- [x] **Step 3: Verify switchTab hoạt động (manual) — check với grep**
 
 ```bash
 grep -c 'switchTab' js/chat.js   # Expected: 1 (method definition)
 ```
 
-- [ ] **Step 4: Regression check**
+- [x] **Step 4: Regression check**
 
 ```bash
 node --check js/chat.js && node --check js/app.js
 ```
 Expected: exit 0
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add js/chat.js
@@ -1323,7 +1323,7 @@ git commit -m "feat: add interactive teach flow — speakSequence, question gate
 **Files:**
 - Modify: `index.html` (trước line 84, trước `#teach-then-quiz-toggle`)
 
-- [ ] **Step 1: Chèn toggle mới (trước line 84)**
+- [x] **Step 1: Chèn toggle mới (trước line 84)**
 
 Trước line 84 (`<label style="display:flex;...` của `teach-then-quiz-toggle`), thêm:
 
@@ -1335,7 +1335,7 @@ Trước line 84 (`<label style="display:flex;...` của `teach-then-quiz-toggle
 
 **Vị trí chính xác:** nằm trong settings modal `#api-modal`, ngay trên `<label>` của `teach-then-quiz-toggle`.
 
-- [ ] **Step 2: Verify — curl kiểm tra ID tồn tại**
+- [x] **Step 2: Verify — curl kiểm tra ID tồn tại**
 
 Start server:
 ```bash
@@ -1353,7 +1353,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add index.html
