@@ -13,7 +13,7 @@ ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on
 - 🔄 **Auto-read** — Auto-advance pages with continuous playback
 - 💾 **Audio Cache** — Export/Import voice cache
 - 🎭 **Custom Teacher Personality** — Add custom instructions like "speak slowly like an old professor", "add funny examples", "use Southern accent"...
-- 📝 **Quiz trắc nghiệm** — AI tự tạo 3 câu hỏi/trang (trắc nghiệm + đúng/sai), chấm điểm ngay, đọc bằng giọng, lưu điểm theo trang
+- 📝 **Quiz trắc nghiệm** — AI tự tạo câu hỏi trắc nghiệm bám sát nội dung trang (3/5/10 câu tuỳ chọn), chấm điểm ngay, đọc bằng giọng, lưu điểm theo trang
 - ⏱️ **Giảng thông minh** — slide chỉ có tiêu đề được giới thiệu ngắn gọn và tự động chuyển trang khi bật auto-read
 
 ## 📺 Demo
