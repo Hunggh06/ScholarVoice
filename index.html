@@ -292,7 +292,15 @@
           <div id="quiz-empty" class="welcome-message">
             <div class="welcome-icon">📝</div>
             <p id="quiz-empty-text">Tải PDF lên để tạo câu hỏi trắc nghiệm cho trang đang xem.</p>
-            <button id="quiz-start-btn" class="btn-primary" disabled>🔄 Tạo câu hỏi cho trang này</button>
+            <div class="quiz-start-controls">
+              <label class="quiz-count-label" for="quiz-count">Số câu</label>
+              <select id="quiz-count">
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+              <button id="quiz-start-btn" class="btn-primary" disabled>🔄 Tạo câu hỏi cho trang này</button>
+            </div>
           </div>
           <div id="quiz-loading" class="hidden">
             <div class="spinner"></div>
