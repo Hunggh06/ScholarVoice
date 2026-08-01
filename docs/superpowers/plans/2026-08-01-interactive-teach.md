@@ -1271,13 +1271,15 @@ Tìm vị trí `_clearSubtitle` trong app.js (khoảng line 620-630). Sau method
 
 ```javascript
   _updateSubtitleForChunk(idx, text) {
-    const el = document.getElementById('voice-subtitle');
+    const el = document.getElementById('subtitle-text');
     if (!el) return;
     const short = text.length > 200 ? text.slice(0, 200) + '...' : text;
     el.textContent = short;
     el.classList.remove('hidden');
   }
 ```
+
+Lưu ý (fix sau review): element subtitle thực tế là #subtitle-text (không có #voice-subtitle trong index.html) — _updateSubtitleForChunk dùng #subtitle-text cho nhất quán với _clearSubtitle.
 
 - [x] **Step 15: Disable seek slider khi có interactive questions**
 

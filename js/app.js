@@ -223,7 +223,7 @@ class App {
   }
 
   _updateSubtitleForChunk(idx, text) {
-    const el = document.getElementById('voice-subtitle');
+    const el = document.getElementById('subtitle-text');
     if (!el) return;
     const short = text.length > 200 ? text.slice(0, 200) + '...' : text;
     el.textContent = short;
