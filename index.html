@@ -268,6 +268,7 @@
 
       <div id="right-tabs">
         <button id="tab-chat" class="right-tab active" data-tab="chat">💬 Hỏi đáp</button>
+        <button id="tab-flash" class="right-tab" data-tab="flash">🃏 Thẻ học</button>
         <button id="tab-quiz" class="right-tab" data-tab="quiz">📝 Quiz</button>
       </div>
 
@@ -330,6 +331,50 @@
           <div id="quiz-review-report" class="hidden" style="padding:16px;display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
             <div id="quiz-review-list"></div>
             <button id="quiz-review-done-btn" class="btn-primary" style="align-self:center;">✅ Đóng báo cáo</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="flash-area" class="hidden">
+        <div id="flash-header">
+          <span id="flash-title">🃏 Thẻ học</span>
+        </div>
+        <div id="flash-body">
+          <div id="flash-empty" class="welcome-message">
+            <div class="welcome-icon">🃏</div>
+            <p id="flash-empty-text">Tải PDF lên để tạo thẻ học cho trang đang xem.</p>
+            <div class="quiz-start-controls">
+              <label class="quiz-count-label" for="flash-count">Số thẻ</label>
+              <select id="flash-count">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+              </select>
+              <button id="flash-start-btn" class="btn-primary" disabled>🔄 Tạo thẻ học cho trang này</button>
+            </div>
+          </div>
+          <div id="flash-loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Đang tạo thẻ học...</p>
+          </div>
+          <div id="flash-card-view" class="hidden">
+            <div id="flash-progress"></div>
+            <div id="flash-card">
+              <div id="flash-card-front"></div>
+              <div id="flash-card-back" class="hidden"></div>
+            </div>
+            <button id="flash-speak-btn" class="btn-ghost" title="Nghe đọc">🔊</button>
+            <div id="flash-card-actions">
+              <button id="flash-know-btn" class="btn-primary">✅ Biết</button>
+              <button id="flash-review-btn" class="btn-ghost">🔄 Ôn lại</button>
+            </div>
+          </div>
+          <div id="flash-result" class="hidden">
+            <div id="flash-result-text">🎉 Hoàn thành!</div>
+            <div style="display:flex;gap:10px;">
+              <button id="flash-retry-btn" class="btn-primary">🔄 Học lại</button>
+              <button id="flash-refresh-btn" class="btn-ghost">🆕 Làm mới (thẻ mới)</button>
+            </div>
           </div>
         </div>
       </div>
