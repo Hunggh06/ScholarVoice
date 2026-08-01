@@ -7,6 +7,7 @@ import { AIEngine } from './ai-engine.js';
 import { TTSEngine } from './tts-engine.js';
 import { ChatManager } from './chat.js';
 import { QuizManager } from './quiz.js';
+import { FlashcardsManager } from './flashcards.js';
 import { detectTitleSlide } from './title-detect.js';
 
 class App {
@@ -16,6 +17,7 @@ class App {
     this.ttsEngine = new TTSEngine();
     this.chatManager = new ChatManager();
     this.quizManager = new QuizManager(this);
+    this.flashcardsManager = new FlashcardsManager(this);
     this._lastTaughtWasTitle = false;
     this._teachThenQuiz = true;
     this._justTaught = false;
@@ -561,6 +563,7 @@ class App {
 
       this.chatManager.setEnabled(true);
       this.quizManager.onPdfLoaded();
+      this.flashcardsManager.onPdfLoaded();
 
       // Tự động khôi phục cache nếu đã lưu trước đó
       const restored = this._autoRestoreCache(file.name);
@@ -687,6 +690,7 @@ class App {
       this._updatePageInfo();
       this._updatePageCacheBar();
       this.quizManager.onPageChanged(this.pdfViewer.currentPage);
+      this.flashcardsManager.onPageChanged(this.pdfViewer.currentPage);
 
       if (this.autoRead) {
         await this._teachCurrentPage();
