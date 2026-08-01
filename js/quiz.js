@@ -26,6 +26,10 @@ export class QuizManager {
     this.quizResultScore = document.getElementById('quiz-result-score');
     this.quizRetryBtn = document.getElementById('quiz-retry-btn');
     this.quizCloseBtn = document.getElementById('quiz-close-btn');
+    this.quizReviewBtn = document.getElementById('quiz-review-btn');
+    this.quizReviewReport = document.getElementById('quiz-review-report');
+    this.quizReviewList = document.getElementById('quiz-review-list');
+    this.quizReviewDoneBtn = document.getElementById('quiz-review-done-btn');
 
     this.questions = [];
     this.currentIndex = 0;
@@ -33,6 +37,11 @@ export class QuizManager {
     this.answered = false;
     this._generating = false;
     this._genSeq = 0;
+
+    this._reviewMode = false;
+    this._weakPages = [];
+    this._reviewIndex = -1;
+    this._reviewReport = {};
 
     this._setupEvents();
   }
@@ -44,6 +53,8 @@ export class QuizManager {
     this.quizNextBtn.addEventListener('click', () => this._onNext());
     this.quizRetryBtn.addEventListener('click', () => this._retry());
     this.quizCloseBtn.addEventListener('click', () => this._resetToEmpty());
+    this.quizReviewBtn.addEventListener('click', () => this._startWeakPageReview());
+    this.quizReviewDoneBtn.addEventListener('click', () => this._closeReviewReport());
     this.quizOptions.addEventListener('click', (e) => {
       const btn = e.target.closest('.quiz-option');
       if (!btn) return;
@@ -54,6 +65,12 @@ export class QuizManager {
   /** Chuyển tab chat/quiz */
   switchTab(name) {
     const showQuiz = name === 'quiz';
+    if (!showQuiz && this._reviewMode) {
+      this._reviewMode = false;
+      this._weakPages = [];
+      this._reviewIndex = -1;
+      this._reviewReport = {};
+    }
     this.chatArea.classList.toggle('hidden', showQuiz);
     this.quizArea.classList.toggle('hidden', !showQuiz);
     this.tabChat.classList.toggle('active', !showQuiz);
@@ -73,6 +90,7 @@ export class QuizManager {
 
   /** App gọi khi đổi trang — cập nhật tiêu đề + điểm, tự sinh nếu tab đang mở */
   onPageChanged(pageNum) {
+    if (this._reviewMode) return;
     this._syncForPage(pageNum);
     if (!this.quizArea.classList.contains('hidden')) {
       this.questions = [];
@@ -90,6 +108,7 @@ export class QuizManager {
     this.quizStartBtn.disabled = false;
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
     this._syncForPage(this.app.pdfViewer.currentPage);
+    this._updateReviewBtn();
   }
 
   /** Cập nhật tiêu đề + điểm cao nhất của trang */
@@ -102,6 +121,7 @@ export class QuizManager {
     } else {
       this.quizBestScore.classList.add('hidden');
     }
+    this._updateReviewBtn();
   }
 
   /** Reset về trạng thái trống (chưa làm) */
@@ -116,12 +136,120 @@ export class QuizManager {
     this.quizEmpty.classList.remove('hidden');
     this.quizStartBtn.disabled = !this.app.pdfViewer.isLoaded;
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
+    this.quizReviewReport.classList.add('hidden');
+    this._updateReviewBtn();
   }
 
   /** Số câu hỏi từ dropdown (3/5/10, mặc định 3) */
   _getQuizCount() {
     const v = parseInt(this.quizCountSelect?.value, 10);
     return [3, 5, 10].includes(v) ? v : 3;
+  }
+
+  _getWeakPages() {
+    const filename = this.app._pdfFileName;
+    if (!filename) return [];
+    try {
+      const all = JSON.parse(localStorage.getItem('quiz_scores_' + filename) || '{}');
+      return Object.entries(all)
+        .filter(([, score]) => {
+          const pct = score.best / (score.total || 3);
+          return pct < 0.6;
+        })
+        .map(([k]) => parseInt(k, 10))
+        .sort((a, b) => a - b);
+    } catch {
+      return [];
+    }
+  }
+
+  _updateReviewBtn() {
+    if (!this.app.pdfViewer.isLoaded) {
+      this.quizReviewBtn.classList.add('hidden');
+      return;
+    }
+    const weak = this._getWeakPages();
+    this.quizReviewBtn.classList.toggle('hidden', weak.length === 0);
+  }
+
+  _startWeakPageReview() {
+    this._weakPages = this._getWeakPages();
+    if (this._weakPages.length === 0) {
+      this.app._showToast('Không có trang yếu nào để ôn tập.', 'error');
+      return;
+    }
+    this._reviewMode = true;
+    this._reviewIndex = 0;
+    this._reviewReport = {};
+    this._reviewCurrentPage();
+  }
+
+  async _reviewCurrentPage() {
+    const pageNum = this._weakPages[this._reviewIndex];
+
+    const oldScore = this._getScore(pageNum);
+    this._reviewReport[pageNum] = {
+      oldBest: oldScore ? oldScore.best : 0,
+      oldTotal: oldScore ? (oldScore.total || 3) : 3
+    };
+
+    this.app.pdfViewer.renderPage(pageNum);
+    this._syncForPage(pageNum);
+
+    this.app.aiEngine.clearQuizForPage(pageNum);
+    this.questions = [];
+    this.currentIndex = 0;
+    this.correctCount = 0;
+    this.answered = false;
+
+    this.quizEmpty.classList.add('hidden');
+    this.quizResult.classList.add('hidden');
+    this.quizQuestion.classList.add('hidden');
+    this.quizReviewReport.classList.add('hidden');
+    this._generateForCurrentPage();
+  }
+
+  _onReviewPageDone(pageNum) {
+    this._reviewReport[pageNum].newBest = this.correctCount;
+    this._reviewReport[pageNum].newTotal = this.questions.length;
+
+    this._reviewIndex++;
+    if (this._reviewIndex >= this._weakPages.length) {
+      this._showReviewReport();
+    } else {
+      this._reviewCurrentPage();
+    }
+  }
+
+  _showReviewReport() {
+    this._reviewMode = false;
+
+    this.quizQuestion.classList.add('hidden');
+    this.quizResult.classList.add('hidden');
+    this.quizLoading.classList.add('hidden');
+    this.quizEmpty.classList.add('hidden');
+
+    let html = '<h3 style="margin:0 0 8px 0;">📊 Báo cáo ôn tập</h3>';
+    const entries = Object.entries(this._reviewReport).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+    for (const [page, r] of entries) {
+      const newPct = r.newTotal > 0 ? r.newBest / r.newTotal : 0;
+      const pass = newPct >= 0.6;
+      html += `<div class="review-item ${pass ? 'pass' : 'fail'}">
+        <span><strong>Trang ${page}</strong>: ${r.oldBest}/${r.oldTotal} → ${r.newBest}/${r.newTotal}</span>
+        <span>${pass ? '✅' : '❌'}</span>
+      </div>`;
+    }
+    this.quizReviewList.innerHTML = html;
+    this.quizReviewReport.classList.remove('hidden');
+    this._updateReviewBtn();
+  }
+
+  _closeReviewReport() {
+    this._reviewMode = false;
+    this._weakPages = [];
+    this._reviewIndex = -1;
+    this._reviewReport = {};
+    this._resetToEmpty();
   }
 
   /** Sinh quiz cho trang hiện tại */
@@ -257,6 +385,7 @@ export class QuizManager {
     this.quizResult.classList.remove('hidden');
     this.quizResultScore.innerHTML = `🎯 Bạn trả lời đúng <strong>${this.correctCount}/${this.questions.length}</strong> câu.`;
     this._syncForPage(pageNum);
+    if (this._reviewMode) this._onReviewPageDone(pageNum);
   }
 
   /** Làm lại: xoá cache quiz trang → sinh câu mới */
