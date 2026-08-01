@@ -18,7 +18,7 @@
 - Create: `js/title-detect.js`
 - Test: `tests/title-detect.test.mjs` (thư mục `tests/` mới, không cần framework)
 
-- [ ] **Step 1: Viết test trước (failing)**
+- [x] **Step 1: Viết test trước (failing)**
 
 Tạo file `tests/title-detect.test.mjs`:
 
@@ -47,12 +47,12 @@ assert.strictEqual(detectTitleSlide('## Chương 5: Tích phân'), true, 'headin
 console.log('✅ title-detect: tất cả test pass');
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận FAIL**
+- [x] **Step 2: Chạy test, xác nhận FAIL**
 
 Run: `node tests/title-detect.test.mjs`
 Expected: FAIL với lỗi `Cannot find module '../js/title-detect.js'`
 
-- [ ] **Step 3: Tạo module `js/title-detect.js`**
+- [x] **Step 3: Tạo module `js/title-detect.js`**
 
 ```javascript
 /**
@@ -78,12 +78,12 @@ export function detectTitleSlide(pageText) {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận PASS**
+- [x] **Step 4: Chạy test, xác nhận PASS**
 
 Run: `node tests/title-detect.test.mjs`
 Expected: `✅ title-detect: tất cả test pass`, exit code 0
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add js/title-detect.js tests/title-detect.test.mjs
@@ -98,7 +98,7 @@ git commit -m "feat: add title slide detection util"
 - Modify: `js/ai-engine.js` (thêm `quizCache` vào constructor, thêm method `generateQuiz`, `clearQuizForPage`, thêm export `validateQuizQuestions`)
 - Test: `tests/quiz-validate.test.mjs`
 
-- [ ] **Step 1: Viết test cho `validateQuizQuestions` trước (failing)**
+- [x] **Step 1: Viết test cho `validateQuizQuestions` trước (failing)**
 
 Tạo file `tests/quiz-validate.test.mjs`:
 
@@ -155,12 +155,12 @@ assert.strictEqual(validateQuizQuestions(badType).length, 0, 'loại câu type l
 console.log('✅ quiz-validate: tất cả test pass');
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận FAIL**
+- [x] **Step 2: Chạy test, xác nhận FAIL**
 
 Run: `node tests/quiz-validate.test.mjs`
 Expected: FAIL với lỗi import (chưa có export `validateQuizQuestions`)
 
-- [ ] **Step 3: Thêm `quizCache` vào constructor của AIEngine**
+- [x] **Step 3: Thêm `quizCache` vào constructor của AIEngine**
 
 Trong `js/ai-engine.js`, constructor hiện có (sau dòng `this.pageCache = new Map();`, tức sau dòng ~31), thêm:
 
@@ -169,7 +169,7 @@ Trong `js/ai-engine.js`, constructor hiện có (sau dòng `this.pageCache = new
     this.quizCache = new Map();
 ```
 
-- [ ] **Step 4: Thêm `validateQuizQuestions` (export) và `generateQuiz` + `clearQuizForPage`**
+- [x] **Step 4: Thêm `validateQuizQuestions` (export) và `generateQuiz` + `clearQuizForPage`**
 
 Thêm vào cuối file `js/ai-engine.js` (trước dòng `}` cuối cùng của class — đặt methods trong class; export function đặt SAU class):
 
@@ -287,17 +287,17 @@ export function validateQuizQuestions(raw) {
 }
 ```
 
-- [ ] **Step 5: Chạy test, xác nhận PASS**
+- [x] **Step 5: Chạy test, xác nhận PASS**
 
 Run: `node tests/quiz-validate.test.mjs`
 Expected: `✅ quiz-validate: tất cả test pass`, exit code 0
 
-- [ ] **Step 6: Kiểm tra syntax tổng thể**
+- [x] **Step 6: Kiểm tra syntax tổng thể**
 
 Run: `node --check js/ai-engine.js && node --check js/title-detect.js`
 Expected: không có output, exit code 0
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add js/ai-engine.js tests/quiz-validate.test.mjs
@@ -311,7 +311,7 @@ git commit -m "feat: add AI quiz generation with validation and cache"
 **Files:**
 - Modify: `js/ai-engine.js` (`teachPage` signature + prompt + result flag)
 
-- [ ] **Step 1: Sửa signature và thêm cờ**
+- [x] **Step 1: Sửa signature và thêm cờ**
 
 Trong `js/ai-engine.js`, đổi dòng:
 ```javascript
@@ -323,7 +323,7 @@ thành:
     const isTitleSlide = !!opts.isTitleSlide;
 ```
 
-- [ ] **Step 2: Chọn system prompt theo cờ**
+- [x] **Step 2: Chọn system prompt theo cờ**
 
 Trong `teachPage`, khối hiện tại:
 ```javascript
@@ -350,7 +350,7 @@ KHÔNG dùng markdown hay ký tự đặc biệt nào. Chỉ dùng chữ cái, s
 
 (Nội dung cũ của prompt tiếp tục nằm trong nhánh `else`, và đóng nhánh bằng `}` sau phần cuối prompt cũ — tức sau dòng kết thúc backtick của prompt gốc: `KHÔNG dùng ký tự đặc biệt nào cả. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).`;)
 
-- [ ] **Step 3: Slide tiêu đề không cần JSON segments**
+- [x] **Step 3: Slide tiêu đề không cần JSON segments**
 
 Trong `teachPage`, khối hiện tại:
 ```javascript
@@ -367,7 +367,7 @@ Sửa thành:
       expectJson = true;
 ```
 
-- [ ] **Step 4: Thêm isTitleSlide vào kết quả trả về (để cache-hit biết được)**
+- [x] **Step 4: Thêm isTitleSlide vào kết quả trả về (để cache-hit biết được)**
 
 Trong `teachPage`, khối cuối:
 ```javascript
@@ -378,12 +378,12 @@ Sửa thành:
     const result = { voice_text: voiceText, segments, isTitleSlide };
 ```
 
-- [ ] **Step 5: Verify syntax**
+- [x] **Step 5: Verify syntax**
 
 Run: `node --check js/ai-engine.js && node tests/quiz-validate.test.mjs`
 Expected: không có output từ --check, test vẫn PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add js/ai-engine.js
@@ -398,7 +398,7 @@ git commit -m "feat: adapt lecture prompt for title slides"
 - Modify: `index.html` (thêm thanh tab + container quiz giữa `#custom-style-box` và `#chat-area`)
 - Modify: `css/style.css` (thêm style tab + quiz)
 
-- [ ] **Step 1: Thêm thanh tab vào index.html**
+- [x] **Step 1: Thêm thanh tab vào index.html**
 
 Trong `index.html`, giữa khối `</div>` đóng `#custom-style-box` (dòng ~262) và `<div id="chat-area">` (dòng ~264), chèn:
 
@@ -409,7 +409,7 @@ Trong `index.html`, giữa khối `</div>` đóng `#custom-style-box` (dòng ~26
       </div>
 ```
 
-- [ ] **Step 2: Thêm container quiz vào index.html**
+- [x] **Step 2: Thêm container quiz vào index.html**
 
 NGAY SAU `</div>` đóng `#chat-area` (sau dòng `</div>` chứa `#chat-clear-btn`, trước `<div id="debug-panel">`), chèn:
 
@@ -448,7 +448,7 @@ NGAY SAU `</div>` đóng `#chat-area` (sau dòng `</div>` chứa `#chat-clear-bt
       </div>
 ```
 
-- [ ] **Step 3: Thêm CSS cho tab + quiz**
+- [x] **Step 3: Thêm CSS cho tab + quiz**
 
 Thêm vào cuối `css/style.css` (trước phần RESPONSIVE hoặc sau nó — thêm sau cùng để không phá layout cũ):
 
@@ -513,12 +513,12 @@ Thêm vào cuối `css/style.css` (trước phần RESPONSIVE hoặc sau nó —
 #quiz-empty .btn-primary { margin-top:8px; }
 ```
 
-- [ ] **Step 4: Verify HTML hợp lệ**
+- [x] **Step 4: Verify HTML hợp lệ**
 
 Run: `python3 -c "from html.parser import HTMLParser; p=HTMLParser(); p.feed(open('index.html').read()); print('HTML OK')"`
 Expected: `HTML OK`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add index.html css/style.css
@@ -532,7 +532,7 @@ git commit -m "feat: add quiz tab UI markup and styles"
 **Files:**
 - Create: `js/quiz.js`
 
-- [ ] **Step 1: Tạo file `js/quiz.js`**
+- [x] **Step 1: Tạo file `js/quiz.js`**
 
 ```javascript
 /**
@@ -827,12 +827,12 @@ export class QuizManager {
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 Run: `node --check js/quiz.js`
 Expected: không có output, exit code 0
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add js/quiz.js
@@ -846,7 +846,7 @@ git commit -m "feat: add QuizManager module"
 **Files:**
 - Modify: `js/app.js` (imports, constructor, init, `_teachCurrentPage`, `_prefetchNextPages`, `onEnd`, stop button)
 
-- [ ] **Step 1: Thêm imports**
+- [x] **Step 1: Thêm imports**
 
 Trong `js/app.js`, khối import hiện có (dòng 5-8), thêm:
 
@@ -855,7 +855,7 @@ import { QuizManager } from './quiz.js';
 import { detectTitleSlide } from './title-detect.js';
 ```
 
-- [ ] **Step 2: Khởi tạo QuizManager trong constructor**
+- [x] **Step 2: Khởi tạo QuizManager trong constructor**
 
 Trong `js/app.js`, sau dòng `this.chatManager = new ChatManager();`, thêm:
 
@@ -864,7 +864,7 @@ Trong `js/app.js`, sau dòng `this.chatManager = new ChatManager();`, thêm:
     this._lastTaughtWasTitle = false;
 ```
 
-- [ ] **Step 3: Gọi setup tab + sự kiện quiz trong init()**
+- [x] **Step 3: Gọi setup tab + sự kiện quiz trong init()**
 
 Trong `init()`, sau dòng `this._setupChat();`, thêm:
 
@@ -872,7 +872,7 @@ Trong `init()`, sau dòng `this._setupChat();`, thêm:
     this._setupQuizEvents();
 ```
 
-- [ ] **Step 4: Thêm method `_setupQuizEvents`**
+- [x] **Step 4: Thêm method `_setupQuizEvents`**
 
 Thêm method mới vào class App (đặt sau `_setupChat`):
 
@@ -883,7 +883,7 @@ Thêm method mới vào class App (đặt sau `_setupChat`):
   }
 ```
 
-- [ ] **Step 5: Thông báo cho QuizManager khi tải PDF**
+- [x] **Step 5: Thông báo cho QuizManager khi tải PDF**
 
 Trong `_loadPDFFile`, sau dòng `this.chatManager.setEnabled(true);`, thêm:
 
@@ -891,7 +891,7 @@ Trong `_loadPDFFile`, sau dòng `this.chatManager.setEnabled(true);`, thêm:
       this.quizManager.onPdfLoaded();
 ```
 
-- [ ] **Step 6: Thông báo đổi trang**
+- [x] **Step 6: Thông báo đổi trang**
 
 Trong `_navigatePage`, sau khối `if (success) { this._updatePageInfo(); this._updatePageCacheBar();`, thêm (trong khối success):
 
@@ -899,7 +899,7 @@ Trong `_navigatePage`, sau khối `if (success) { this._updatePageInfo(); this._
       this.quizManager.onPageChanged(this.pdfViewer.currentPage);
 ```
 
-- [ ] **Step 7: Smart pacing — `_teachCurrentPage` phát hiện slide tiêu đề**
+- [x] **Step 7: Smart pacing — `_teachCurrentPage` phát hiện slide tiêu đề**
 
 Trong `_teachCurrentPage`, nhánh cache-hit (khối `if (entry) {`), sau dòng `this.currentSegments = entry.segments || null;`, thêm:
 
@@ -920,7 +920,7 @@ thành:
       const result = await this.aiEngine.teachPage(imageBase64, targetPage, pageText, null, { isTitleSlide: this._lastTaughtWasTitle });
 ```
 
-- [ ] **Step 8: Smart pacing — prefetch cũng áp dụng phát hiện**
+- [x] **Step 8: Smart pacing — prefetch cũng áp dụng phát hiện**
 
 Trong `_prefetchNextPages`, khối:
 ```javascript
@@ -942,7 +942,7 @@ sửa thành:
         await this.aiEngine.teachPage(imageBase64, pageNum, pageText, null, { isTitleSlide });
 ```
 
-- [ ] **Step 9: Smart pacing — auto-advance khi hết slide tiêu đề**
+- [x] **Step 9: Smart pacing — auto-advance khi hết slide tiêu đề**
 
 Trong `_setupTTSCallbacks`, handler `onEnd` hiện tại (khối `this.ttsEngine.onEnd = () => {`), sau dòng `this._clearSubtitle();` và trước dấu `};` đóng, thêm:
 
@@ -957,7 +957,7 @@ Trong `_setupTTSCallbacks`, handler `onEnd` hiện tại (khối `this.ttsEngine
       }
 ```
 
-- [ ] **Step 10: Reset cờ khi dừng thủ công**
+- [x] **Step 10: Reset cờ khi dừng thủ công**
 
 Trong `_setupVoiceControls`, handler nút `btn-stop` (khối `document.getElementById('btn-stop').addEventListener('click', () => {`), sau dòng `this._isTeaching = false;`, thêm:
 
@@ -971,17 +971,17 @@ Cũng reset khi đổi trang — trong `_navigatePage`, sau dòng `this.currentS
     this._lastTaughtWasTitle = false;
 ```
 
-- [ ] **Step 11: Verify syntax**
+- [x] **Step 11: Verify syntax**
 
 Run: `node --check js/app.js && node --check js/quiz.js && node --check js/ai-engine.js && node --check js/title-detect.js`
 Expected: không có output, exit code 0
 
-- [ ] **Step 12: Chạy lại toàn bộ unit test**
+- [x] **Step 12: Chạy lại toàn bộ unit test**
 
 Run: `node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs`
 Expected: cả 2 đều `✅ ... tất cả test pass`
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add js/app.js
@@ -996,7 +996,7 @@ git commit -m "feat: integrate quiz tab and smart lecture pacing"
 - Create: `tests/smoke-quiz.mjs` (Playwright smoke — pattern theo `test_playwright.js` hiện có)
 - Modify: README.md (cập nhật danh sách tính năng — 2 dòng mới)
 
-- [ ] **Step 1: Tạo smoke test Playwright**
+- [x] **Step 1: Tạo smoke test Playwright**
 
 Tạo file `tests/smoke-quiz.mjs`:
 
@@ -1052,12 +1052,12 @@ console.log('✅ Smoke test quiz PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy server**
+- [x] **Step 2: Chạy server**
 
 Run: `python3 server.py &` (hoặc terminal riêng) — server chạy ở `http://localhost:8080`
 Expected: log `Server chay tai http://localhost:8080`
 
-- [ ] **Step 3: Chạy smoke test**
+- [x] **Step 3: Chạy smoke test**
 
 Run: `node tests/smoke-quiz.mjs`
 Expected: `✅ Smoke test quiz PASS`, không có lỗi trình duyệt
@@ -1077,7 +1077,7 @@ Mở `http://localhost:8080` trong Chrome và kiểm tra checklist:
 - [ ] Bấm ⏹ giữa chừng slide tiêu đề → KHÔNG tự chuyển trang
 - [ ] Chat, giảng bài thường, seek, subtitle vẫn hoạt động bình thường (không vỡ luồng cũ)
 
-- [ ] **Step 5: Cập nhật README.md**
+- [x] **Step 5: Cập nhật README.md**
 
 Trong README.md, phần `## Features`, thêm 2 dòng:
 
@@ -1086,7 +1086,7 @@ Trong README.md, phần `## Features`, thêm 2 dòng:
 - ⏱️ **Giảng thông minh** — slide chỉ có tiêu đề được giới thiệu ngắn gọn và tự động chuyển trang khi bật auto-read
 ```
 
-- [ ] **Step 6: Dọn server + commit**
+- [x] **Step 6: Dọn server + commit**
 
 ```bash
 # Dừng server (Ctrl+C hoặc kill %1)
