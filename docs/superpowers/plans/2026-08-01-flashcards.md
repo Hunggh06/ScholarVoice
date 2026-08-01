@@ -1,6 +1,6 @@
 # Flashcards: thẻ học thuật ngữ AI (Plan B) — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Tab mới "🃏 Thẻ học" trong right panel, giữa Chat và Quiz. AI trích thuật ngữ → định nghĩa từ nội dung trang hiện tại. Người dùng lật thẻ, nghe đọc bằng TTS, tự đánh giá ✅ Biết / 🔄 Ôn lại. Ôn lại → thẻ quay lại xoay vòng; hết thẻ → màn hình hoàn thành. Cache theo trang + provider + số thẻ. Nút "Làm mới" xoá cache và sinh thẻ mới.
 
@@ -14,16 +14,16 @@
 
 ## Trước khi bắt đầu
 
-- [ ] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
+- [x] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
   ```bash
   git status
   ```
-- [ ] Baseline — tất cả file JS hiện tại parse OK:
+- [x] Baseline — tất cả file JS hiện tại parse OK:
   ```bash
   node --check js/ai-engine.js && node --check js/quiz.js && node --check js/app.js && node --check js/chat.js
   ```
   Expected: exit 0
-- [ ] Chạy regression tests hiện có:
+- [x] Chạy regression tests hiện có:
   ```bash
   node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs
   ```
@@ -41,7 +41,7 @@
 - `clearCache()` và `saveSettings()` (khi đổi provider) phải clear cả `flashcardCache`.
 - `validateFlashcards` là export function (giống `validateQuizQuestions`), test được trong Node.
 
-- [ ] **Step 1: Constructor — thêm `this.flashcardCache` (sau line 33)**
+- [x] **Step 1: Constructor — thêm `this.flashcardCache` (sau line 33)**
 
 Hiện tại line 32-33:
 ```javascript
@@ -54,7 +54,7 @@ Sau line 33, thêm:
     this.flashcardCache = new Map();
 ```
 
-- [ ] **Step 2: Thêm method `generateFlashcards(pageNum, pageText, imageBase64, count = 5)`**
+- [x] **Step 2: Thêm method `generateFlashcards(pageNum, pageText, imageBase64, count = 5)`**
 
 Thêm vào class (sau `generateQuiz` ~line 591, trước `clearQuizForPage` ~line 593):
 
@@ -113,7 +113,7 @@ Hãy tạo flashcards theo đúng định dạng JSON yêu cầu ở trên.`;
   }
 ```
 
-- [ ] **Step 3: Thêm export function `validateFlashcards(raw)`**
+- [x] **Step 3: Thêm export function `validateFlashcards(raw)`**
 
 Thêm vào cuối file (sau `validateQuizQuestions` ~line 980, trước dòng kết thúc):
 
@@ -159,7 +159,7 @@ export function validateFlashcards(raw) {
 }
 ```
 
-- [ ] **Step 4: Thêm method `clearFlashcardsForPage(pageNum)`**
+- [x] **Step 4: Thêm method `clearFlashcardsForPage(pageNum)`**
 
 Thêm vào class (sau `clearQuizForPage` ~line 598):
 
@@ -173,7 +173,7 @@ Thêm vào class (sau `clearQuizForPage` ~line 598):
   }
 ```
 
-- [ ] **Step 5: Sửa `clearCache()` — clear `flashcardCache` (line 601-606)**
+- [x] **Step 5: Sửa `clearCache()` — clear `flashcardCache` (line 601-606)**
 
 Sửa — thêm dòng `this.flashcardCache.clear();` sau `this.quizCache.clear();`:
 
@@ -193,7 +193,7 @@ Code kết quả:
   }
 ```
 
-- [ ] **Step 6: Sửa `saveSettings()` — clear `flashcardCache` khi đổi provider (lines 79-85)**
+- [x] **Step 6: Sửa `saveSettings()` — clear `flashcardCache` khi đổi provider (lines 79-85)**
 
 Sau dòng `this.quizCache.clear();` (line 82), thêm:
 ```javascript
@@ -211,14 +211,14 @@ Code kết quả (block `if (oldProvider !== this.provider)`):
     }
 ```
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 ```bash
 node --check js/ai-engine.js
 ```
 Expected: exit 0
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add js/ai-engine.js
@@ -238,7 +238,7 @@ Kiểm tra vị trí hiện tại:
 | `#tab-flash` | 270 (`#tab-chat`) | Giữa `<button id="tab-chat" ...>` và `<button id="tab-quiz" ...>` |
 | `#flash-area` | 334 (`</div>` của `#quiz-body`) | Sau `</div>` đóng `#quiz-body`, trước `</div>` đóng `#right-panel` |
 
-- [ ] **Step 1: Thêm `#tab-flash` trong `#right-tabs` (giữa line 270 và 271)**
+- [x] **Step 1: Thêm `#tab-flash` trong `#right-tabs` (giữa line 270 và 271)**
 
 Sau dòng 270 (`<button id="tab-chat" class="right-tab active" data-tab="chat">💬 Hỏi đáp</button>`), thêm:
 
@@ -246,7 +246,7 @@ Sau dòng 270 (`<button id="tab-chat" class="right-tab active" data-tab="chat">�
         <button id="tab-flash" class="right-tab" data-tab="flash">🃏 Thẻ học</button>
 ```
 
-- [ ] **Step 2: Thêm `#flash-area` block (sau line 334)**
+- [x] **Step 2: Thêm `#flash-area` block (sau line 334)**
 
 Sau dòng 334 (`</div>` đóng `#quiz-body`), thêm:
 
@@ -297,7 +297,7 @@ Sau dòng 334 (`</div>` đóng `#quiz-body`), thêm:
       </div>
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Start server:
 ```bash
@@ -335,7 +335,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add index.html
@@ -349,7 +349,7 @@ git commit -m "feat: add flash tab and flashcard area HTML elements"
 **Files:**
 - Modify: `css/style.css` (sau line 631 — cuối file)
 
-- [ ] **Step 1: Thêm style flashcards vào cuối file (sau line 631)**
+- [x] **Step 1: Thêm style flashcards vào cuối file (sau line 631)**
 
 Sau dòng 631 (`.review-item.fail { ... }`), thêm:
 
@@ -404,12 +404,12 @@ Sau dòng 631 (`.review-item.fail { ... }`), thêm:
 #flash-empty .btn-primary { margin-top:8px; }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Mở index.html trong browser kiểm tra thủ công hoặc QA Playwright (sẽ cover trong Task 7).
 Không có lệnh `node --check` cho CSS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add css/style.css
@@ -430,7 +430,7 @@ git commit -m "feat: add flashcards styles (card, flip, actions, progress)"
 - **Review queue xoay vòng:** Thẻ 🔄 push vào `reviewQueue`; khi `mainQueue` hết → `mainQueue = [...reviewQueue]`, `reviewQueue = []`, render lại.
 - **`_retry` KHÔNG gọi AI** (dùng cards cũ), **`_refresh` GỌI AI** (clear cache trước).
 
-- [ ] **Step 1: Tạo file `js/flashcards.js`**
+- [x] **Step 1: Tạo file `js/flashcards.js`**
 
 ```javascript
 /**
@@ -729,21 +729,21 @@ export class FlashcardsManager {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 node --check js/flashcards.js
 ```
 Expected: exit 0
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add js/flashcards.js
 git commit -m "feat: add FlashcardsManager with 3-way tab switch, race guard, review queue"
 ```
 
-- [ ] **Step 4: Sửa `QuizManager.switchTab` — ẩn `#flash-area` khi chuyển sang chat/quiz**
+- [x] **Step 4: Sửa `QuizManager.switchTab` — ẩn `#flash-area` khi chuyển sang chat/quiz**
 
 **Files:**
 - Modify: `js/quiz.js` (switchTab ~66-79)
@@ -782,14 +782,14 @@ Code kết quả (switchTab method):
   }
 ```
 
-- [ ] **Step 5: Verify sau khi sửa QuizManager**
+- [x] **Step 5: Verify sau khi sửa QuizManager**
 
 ```bash
 node --check js/quiz.js
 ```
 Expected: exit 0
 
-- [ ] **Step 6: Commit (gộp vào commit của Task 4)**
+- [x] **Step 6: Commit (gộp vào commit của Task 4)**
 
 ```bash
 git add js/quiz.js
@@ -803,7 +803,7 @@ git commit -m "feat: add 3-way tab switch coordination in QuizManager.switchTab"
 **Files:**
 - Modify: `js/app.js` (imports ~5-10, constructor ~12-19, onPdfLoaded ~563, onPageChanged ~689)
 
-- [ ] **Step 1: Import FlashcardsManager (sau line 9)**
+- [x] **Step 1: Import FlashcardsManager (sau line 9)**
 
 Sau dòng 9 (`import { QuizManager } from './quiz.js';`), thêm:
 
@@ -811,7 +811,7 @@ Sau dòng 9 (`import { QuizManager } from './quiz.js';`), thêm:
 import { FlashcardsManager } from './flashcards.js';
 ```
 
-- [ ] **Step 2: Constructor — khởi tạo (sau line 18)**
+- [x] **Step 2: Constructor — khởi tạo (sau line 18)**
 
 Sau dòng 18 (`this.quizManager = new QuizManager(this);`), thêm:
 
@@ -819,7 +819,7 @@ Sau dòng 18 (`this.quizManager = new QuizManager(this);`), thêm:
     this.flashcardsManager = new FlashcardsManager(this);
 ```
 
-- [ ] **Step 3: `onPdfLoaded` — gọi `flashcardsManager.onPdfLoaded()` (sau line 563)**
+- [x] **Step 3: `onPdfLoaded` — gọi `flashcardsManager.onPdfLoaded()` (sau line 563)**
 
 Sau dòng 563 (`this.quizManager.onPdfLoaded();`), thêm:
 
@@ -827,7 +827,7 @@ Sau dòng 563 (`this.quizManager.onPdfLoaded();`), thêm:
       this.flashcardsManager.onPdfLoaded();
 ```
 
-- [ ] **Step 4: `_navigatePage` — gọi `flashcardsManager.onPageChanged()` (sau line 689)**
+- [x] **Step 4: `_navigatePage` — gọi `flashcardsManager.onPageChanged()` (sau line 689)**
 
 Sau dòng 689 (`this.quizManager.onPageChanged(this.pdfViewer.currentPage);`), thêm:
 
@@ -835,14 +835,14 @@ Sau dòng 689 (`this.quizManager.onPageChanged(this.pdfViewer.currentPage);`), t
       this.flashcardsManager.onPageChanged(this.pdfViewer.currentPage);
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 node --check js/app.js
 ```
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add js/app.js
@@ -856,7 +856,7 @@ git commit -m "feat: integrate FlashcardsManager into App lifecycle"
 **Files:**
 - Create: `tests/flashcards-validate.test.mjs`
 
-- [ ] **Step 1: Tạo unit test**
+- [x] **Step 1: Tạo unit test**
 
 ```javascript
 import assert from 'node:assert';
@@ -930,14 +930,14 @@ assert.strictEqual(cards[0].term, 'X');
 console.log('✅ flashcards-validate: tất cả test pass');
 ```
 
-- [ ] **Step 2: Chạy test**
+- [x] **Step 2: Chạy test**
 
 ```bash
 node tests/flashcards-validate.test.mjs
 ```
 Expected: `✅ flashcards-validate: tất cả test pass`, exit 0
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/flashcards-validate.test.mjs
@@ -963,7 +963,7 @@ git commit -m "test: add unit tests for validateFlashcards"
 - Không dùng `window.app` (module-scoped — không tồn tại trên `window`).
 - Tên file PDF: `/tmp/qa-flashcards.pdf` → filename trong app là `qa-flashcards.pdf` (app dùng `file.name`).
 
-- [ ] **Step 1: Tạo QA test script**
+- [x] **Step 1: Tạo QA test script**
 
 ```javascript
 // QA: flashcards flow — network interception + real 1-page PDF via fpdf
@@ -1101,7 +1101,7 @@ console.log('✅ QA flashcards PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy QA test**
+- [x] **Step 2: Chạy QA test**
 
 Start server:
 ```bash
@@ -1121,7 +1121,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/qa-flashcards.mjs
@@ -1135,7 +1135,7 @@ git commit -m "test: add QA for flashcards flow"
 **Files:**
 - Modify: `README.md` (dòng quiz features ~16)
 
-- [ ] **Step 1: Sửa README**
+- [x] **Step 1: Sửa README**
 
 Line 16-17 hiện tại:
 ```markdown
@@ -1148,11 +1148,11 @@ Thêm dòng sau line 17 (sau dòng Learning loop):
 - 🃏 **Flashcards** — AI trích thuật ngữ → định nghĩa từ nội dung trang, lật thẻ học, nghe đọc bằng giọng, tự đánh giá biết/ôn lại, xoay vòng ôn tập
 ```
 
-- [ ] **Step 2: Mark all plan checkboxes as [x]**
+- [x] **Step 2: Mark all plan checkboxes as [x]**
 
 Sau khi tất cả các task đã hoàn thành và verify pass, đánh dấu tất cả checkbox trong plan này thành `[x]`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md
@@ -1163,28 +1163,28 @@ git commit -m "docs: add flashcards feature to README and finalize plan"
 
 ## Verification tổng (final wave)
 
-- [ ] **1. `node --check` tất cả file JS sửa đổi + mới:**
+- [x] **1. `node --check` tất cả file JS sửa đổi + mới:**
 
 ```bash
 node --check js/ai-engine.js && node --check js/app.js && node --check js/quiz.js && node --check js/flashcards.js
 ```
 Expected: exit 0
 
-- [ ] **2. Chạy regression tests cũ:**
+- [x] **2. Chạy regression tests cũ:**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs
 ```
 Expected: `✅ title-detect: tất cả test pass` + `✅ quiz-validate: tất cả test pass`, exit 0
 
-- [ ] **3. Chạy unit test mới:**
+- [x] **3. Chạy unit test mới:**
 
 ```bash
 node tests/flashcards-validate.test.mjs
 ```
 Expected: `✅ flashcards-validate: tất cả test pass`, exit 0
 
-- [ ] **4. Chạy QA quiz count (đảm bảo không regression):**
+- [x] **4. Chạy QA quiz count (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1197,7 +1197,7 @@ Expected: `✅ QA quiz count PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **5. Chạy QA weak review (đảm bảo không regression):**
+- [x] **5. Chạy QA weak review (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1210,7 +1210,7 @@ Expected: `✅ QA weak review PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **6. Chạy QA flashcards:**
+- [x] **6. Chạy QA flashcards:**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1223,7 +1223,7 @@ Expected: `✅ QA flashcards PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **7. Smoke test nhanh (đảm bảo app load không lỗi):**
+- [x] **7. Smoke test nhanh (đảm bảo app load không lỗi):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1236,14 +1236,14 @@ Expected: HTML hợp lệ, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **8. Kiểm tra git status:**
+- [x] **8. Kiểm tra git status:**
 
 ```bash
 git status
 ```
 Expected: sạch (ngoài `.omo/` và `docs/superpowers/plans/` nếu plan file vẫn unstaged).
 
-- [ ] **9. Liệt kê commits đã tạo:**
+- [x] **9. Liệt kê commits đã tạo:**
 
 ```bash
 git log --oneline -10
