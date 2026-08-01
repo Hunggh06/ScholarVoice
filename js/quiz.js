@@ -73,6 +73,11 @@ export class QuizManager {
     }
     this.chatArea.classList.toggle('hidden', showQuiz);
     this.quizArea.classList.toggle('hidden', !showQuiz);
+    // Ẩn flash area + reset flash tab (3-way coordination)
+    const flashArea = document.getElementById('flash-area');
+    if (flashArea) flashArea.classList.add('hidden');
+    const tabFlash = document.getElementById('tab-flash');
+    if (tabFlash) tabFlash.classList.remove('active');
     this.tabChat.classList.toggle('active', !showQuiz);
     this.tabQuiz.classList.toggle('active', showQuiz);
     if (showQuiz) this._onTabOpened();
