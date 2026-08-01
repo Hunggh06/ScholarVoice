@@ -33,6 +33,11 @@ class App {
     this._customStyleTimer = null;
     this._prefetchFailures = 0;
     this._isTeaching = false;
+    this._chunks = null;
+    this._questions = null;
+    this._qIdx = 0;
+    this._awaitingAnswer = false;
+    this._currentChunkIdx = 0;
   }
 
   _cancelPrefetch() {
@@ -215,6 +220,14 @@ class App {
   _clearSubtitle() {
     const el = document.getElementById('subtitle-text');
     if (el) el.innerHTML = '';
+  }
+
+  _updateSubtitleForChunk(idx, text) {
+    const el = document.getElementById('voice-subtitle');
+    if (!el) return;
+    const short = text.length > 200 ? text.slice(0, 200) + '...' : text;
+    el.textContent = short;
+    el.classList.remove('hidden');
   }
 
   // ============================================================
@@ -422,6 +435,7 @@ class App {
     document.getElementById('ollama-vision').checked = s.ollamaVision;
     document.getElementById('deepseek-model').value = s.deepseekModel || 'deepseek-chat';
     document.getElementById('teach-then-quiz-toggle').checked = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;
+    document.getElementById('interactive-teach-toggle').checked = s.interactiveTeach !== undefined ? s.interactiveTeach : true;
 
     this._toggleProviderUI(s.provider);
   }
@@ -483,6 +497,7 @@ class App {
         ollamaVision: document.getElementById('ollama-vision').checked,
         deepseekModel: document.getElementById('deepseek-model').value,
         teachThenQuiz: document.getElementById('teach-then-quiz-toggle').checked,
+        interactiveTeach: document.getElementById('interactive-teach-toggle').checked,
       });
       this.aiEngine.clearCache();
       this._loadTeachThenQuizSetting();
@@ -677,6 +692,10 @@ class App {
     this.currentSegments = null;
     this._lastTaughtWasTitle = false;
     this._justTaught = false;
+    this._chunks = null;
+    this._questions = null;
+    this._qIdx = 0;
+    this._awaitingAnswer = false;
     const quizNowBtn = document.getElementById('quiz-now-btn');
     if (quizNowBtn) quizNowBtn.classList.add('hidden');
     this.pdfViewer.clearHighlight();
@@ -729,6 +748,23 @@ class App {
       this.currentVoiceText = entry.voice_text;
       this.currentSegments = entry.segments || null;
       this._lastTaughtWasTitle = !!entry.isTitleSlide;
+
+      // Check interactive mode
+      const chunks = entry.voice_chunks;
+      const questions = entry.interactive_questions;
+      if (this.aiEngine.interactiveTeach && Array.isArray(chunks) && chunks.length > 0 && Array.isArray(questions) && questions.length > 0) {
+        this._chunks = chunks;
+        this._questions = questions;
+        this._qIdx = 0;
+        this._awaitingAnswer = false;
+        this.ttsEngine.speakSequence(chunks, this._makeSpeakSequenceCallbacks());
+        this._isTeaching = true;
+        this._setVoiceButtonsEnabled(true);
+        this._updateVoiceStatus('speaking', 'Đang giảng bài...');
+        this._autoPrefetch();
+        return;
+      }
+
       this.ttsEngine.speak(this._cleanVoiceText(entry.voice_text));
       this._isTeaching = true;
       this._setVoiceButtonsEnabled(true);
@@ -760,7 +796,18 @@ class App {
       this.currentVoiceText = result.voice_text;
       this.currentSegments = result.segments || null;
 
-      this.ttsEngine.speak(this._cleanVoiceText(result.voice_text));
+      const chunks = result.voice_chunks;
+      const questions = result.interactive_questions;
+      if (this.aiEngine.interactiveTeach && Array.isArray(chunks) && chunks.length > 0 && Array.isArray(questions) && questions.length > 0) {
+        this._chunks = chunks;
+        this._questions = questions;
+        this._qIdx = 0;
+        this._awaitingAnswer = false;
+        this.ttsEngine.speakSequence(chunks, this._makeSpeakSequenceCallbacks());
+      } else {
+        this.ttsEngine.speak(this._cleanVoiceText(result.voice_text));
+      }
+
       this._isTeaching = true;
       this._setVoiceButtonsEnabled(true);
       this._autoPrefetch();
@@ -781,6 +828,82 @@ class App {
         this.isProcessing = false;
       }
     }
+  }
+
+  _makeSpeakSequenceCallbacks() {
+    return {
+      onChunkStart: (i, chunk) => {
+        this._currentChunkIdx = i;
+        if (chunk.regionVert) {
+          this.pdfViewer.setHighlightRegion(chunk.regionVert);
+        } else {
+          this.pdfViewer.clearHighlight();
+        }
+        this._updateSubtitleForChunk(i, chunk.text);
+        this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${i + 1}`);
+        this._updateSeekSlider(false);
+      },
+
+      onChunkEnd: (i, chunk) => {
+        const q = this._questions && this._qIdx < this._questions.length ? this._questions[this._qIdx] : null;
+        if (q && q.after_chunk === i) {
+          // Dừng sequence tại đây: trả false để speakSequence break loop (Task 4 Step 4)
+          this._showInteractiveQuestion(q);
+          return false;
+        }
+        return true;
+      },
+
+      onEnd: () => {
+        this._isTeaching = false;
+        this._justTaught = true;
+        this._chunks = null;
+        this._questions = null;
+        this._qIdx = 0;
+        this._awaitingAnswer = false;
+        this._updateVoiceStatus('done', `Đã giảng xong trang ${this.pdfViewer.currentPage}`);
+        this._updatePlayPauseBtn(false);
+        this._updateSeekSlider(false);
+        this.currentSegments = null;
+        this.pdfViewer.clearHighlight();
+        this._clearSubtitle();
+
+        if (this.autoRead && this._lastTaughtWasTitle) {
+          setTimeout(() => {
+            if (!this.ttsEngine.isSpeaking && this.pdfViewer.isLoaded) {
+              this._navigatePage('next');
+            }
+          }, 2500);
+        }
+      },
+
+      onError: (err) => {
+        this._isTeaching = false;
+        this._chunks = null;
+        this._questions = null;
+        this._qIdx = 0;
+        this._awaitingAnswer = false;
+        this._updateVoiceStatus('error', err.message);
+        this._updateSeekSlider(false);
+        this.currentSegments = null;
+        this.pdfViewer.clearHighlight();
+        this._clearSubtitle();
+      }
+    };
+  }
+
+  _showInteractiveQuestion(q) {
+    const questionText = `❓ ${q.question}`;
+    const optionsText = `\n\nA. ${q.options[0]}\nB. ${q.options[1]}\nC. ${q.options[2]}\nD. ${q.options[3]}`;
+    this.chatManager.addAIMessage(questionText + optionsText);
+    this.chatManager.switchTab('chat');
+
+    // TTS đọc câu hỏi
+    const ttsText = `${q.question}. A. ${q.options[0]}. B. ${q.options[1]}. C. ${q.options[2]}. D. ${q.options[3]}.`;
+    this.ttsEngine.speak(this._cleanVoiceText(ttsText));
+
+    this._awaitingAnswer = true;
+    this._updateVoiceStatus('done', '❓ Đang chờ bạn trả lời...');
   }
 
   /**
@@ -917,6 +1040,10 @@ class App {
     document.getElementById('btn-stop').addEventListener('click', () => {
       this._isTeaching = false;
       this._lastTaughtWasTitle = false;
+      this._chunks = null;
+      this._questions = null;
+      this._qIdx = 0;
+      this._awaitingAnswer = false;
       this.ttsEngine.stop();
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
@@ -938,6 +1065,7 @@ class App {
 
   _setupTTSCallbacks() {
     this.ttsEngine.onStart = () => {
+      if (this._chunks) return false;
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
       this._updateSeekSlider(true);
@@ -947,6 +1075,7 @@ class App {
     };
 
     this.ttsEngine.onEnd = () => {
+      if (this._chunks) return false;
       this._isTeaching = false;
       this._justTaught = true;
       this._updateVoiceStatus('done', `Đã giảng xong trang ${this.pdfViewer.currentPage}`);
@@ -1050,9 +1179,9 @@ class App {
         this._justTaught = false;
         break;
       case 'done':
-        iconEl.textContent = '✅';
+        iconEl.textContent = this._awaitingAnswer ? '❓' : '✅';
         if (quizNowBtn) {
-          if (this._justTaught && this._teachThenQuiz) quizNowBtn.classList.remove('hidden');
+          if (this._justTaught && this._teachThenQuiz && !this._awaitingAnswer) quizNowBtn.classList.remove('hidden');
           else quizNowBtn.classList.add('hidden');
           this._justTaught = false;
         }
@@ -1110,6 +1239,11 @@ class App {
   }
 
   async _handleChatMessage(question) {
+    if (this._awaitingAnswer === true) {
+      this._handleInteractiveAnswer(question);
+      return;
+    }
+
     if (!this.pdfViewer.isLoaded) {
       this._showToast('Vui lòng tải file PDF trước', 'error');
       return;
@@ -1162,6 +1296,82 @@ class App {
       this._updateVoiceStatus('error', 'Lỗi: ' + err.message);
     } finally {
       this.chatManager.setEnabled(true);
+    }
+  }
+
+  _handleInteractiveAnswer(text) {
+    if (!this._questions || this._qIdx >= this._questions.length) {
+      this._awaitingAnswer = false;
+      return;
+    }
+
+    const q = this._questions[this._qIdx];
+
+    const normalized = text.trim();
+    const firstChar = normalized.charAt(0).toUpperCase();
+    const userIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[firstChar];
+
+    if (userIndex === undefined) {
+      this.chatManager.addAIMessage('⚠️ Vui lòng trả lời A, B, C hoặc D.');
+      this.ttsEngine.speak(this._cleanVoiceText('Vui lòng trả lời A, B, C hoặc D.'));
+      return;
+    }
+
+    this.chatManager.addUserMessage(normalized.toUpperCase());
+
+    const isCorrect = userIndex === q.correct_index;
+    let confirmText;
+    if (isCorrect) {
+      confirmText = `✅ Đúng! ${q.explanation}`;
+    } else {
+      confirmText = `❌ Sai. Đáp án đúng là ${q.options[q.correct_index]}. ${q.explanation}`;
+    }
+    this.chatManager.addAIMessage(confirmText);
+
+    const ttsConfirm = isCorrect
+      ? `Đúng rồi. ${q.explanation}`
+      : `Sai rồi. Đáp án đúng là ${q.options[q.correct_index]}. ${q.explanation}`;
+    this.ttsEngine.speak(this._cleanVoiceText(ttsConfirm));
+
+    this._qIdx++;
+    this._awaitingAnswer = false;
+    const nextChunkIdx = this._currentChunkIdx + 1;
+    if (this._chunks && nextChunkIdx < this._chunks.length) {
+      const remainingChunks = this._chunks.slice(nextChunkIdx);
+      const resumeCallbacks = this._makeSpeakSequenceCallbacks();
+      const origOnChunkStart = resumeCallbacks.onChunkStart;
+      const origOnChunkEnd = resumeCallbacks.onChunkEnd;
+      resumeCallbacks.onChunkStart = (i, chunk) => {
+        this._currentChunkIdx = nextChunkIdx + i;
+        if (origOnChunkStart) origOnChunkStart(nextChunkIdx + i, chunk);
+      };
+      resumeCallbacks.onChunkEnd = (i, chunk) => {
+        if (origOnChunkEnd) return origOnChunkEnd(nextChunkIdx + i, chunk);
+        return true;
+      };
+      this.ttsEngine.speakSequence(remainingChunks, resumeCallbacks);
+      this._updateVoiceStatus('speaking', 'Đang giảng tiếp...');
+    } else {
+      this._isTeaching = false;
+      this._justTaught = true;
+      this._chunks = null;
+      this._questions = null;
+      this._qIdx = 0;
+      this._awaitingAnswer = false;
+      this._updateVoiceStatus('done', `Đã giảng xong trang ${this.pdfViewer.currentPage}`);
+      this._updatePlayPauseBtn(false);
+      this._updateSeekSlider(false);
+      this.currentSegments = null;
+      this.pdfViewer.clearHighlight();
+      this._clearSubtitle();
+
+      if (this.autoRead && this._lastTaughtWasTitle) {
+        setTimeout(() => {
+          if (!this.ttsEngine.isSpeaking && this.pdfViewer.isLoaded) {
+            this._navigatePage('next');
+          }
+        }, 2500);
+      }
     }
   }
 

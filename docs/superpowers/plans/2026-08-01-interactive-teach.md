@@ -917,7 +917,7 @@ git commit -m "feat: add switchTab method to ChatManager for tab switching"
 - `_updateVoiceStatus`: case `done` khi đang chờ → text khác.
 - Settings wiring: toggle cho `interactiveTeach`.
 
-- [ ] **Step 1: Constructor — thêm 5 state vars (sau line 35)**
+- [x] **Step 1: Constructor — thêm 5 state vars (sau line 35)**
 
 Sau line 35 (`this._isTeaching = false;`), thêm:
 
@@ -929,7 +929,7 @@ Sau line 35 (`this._isTeaching = false;`), thêm:
     this._currentChunkIdx = 0;
 ```
 
-- [ ] **Step 2: Sửa `_teachCurrentPage` — cache hit path (lines 725-738)**
+- [x] **Step 2: Sửa `_teachCurrentPage` — cache hit path (lines 725-738)**
 
 Thay thế đoạn cache hit (lines 725-738) bằng code có 2 nhánh:
 
@@ -967,7 +967,7 @@ Thay thế đoạn cache hit (lines 725-738) bằng code có 2 nhánh:
     }
 ```
 
-- [ ] **Step 3: Sửa `_teachCurrentPage` — miss path (thay thế lines 754-763)**
+- [x] **Step 3: Sửa `_teachCurrentPage` — miss path (thay thế lines 754-763)**
 
 Thay thế đoạn sau khi nhận `result` (lines 754-763) bằng code có 2 nhánh:
 
@@ -992,7 +992,7 @@ Thay thế đoạn sau khi nhận `result` (lines 754-763) bằng code có 2 nh�
       this._autoPrefetch();
 ```
 
-- [ ] **Step 4: Thêm method `_makeSpeakSequenceCallbacks()` (sau `_teachCurrentPage`, ~line 784)**
+- [x] **Step 4: Thêm method `_makeSpeakSequenceCallbacks()` (sau `_teachCurrentPage`, ~line 784)**
 
 Thêm method mới:
 
@@ -1059,7 +1059,7 @@ Thêm method mới:
   }
 ```
 
-- [ ] **Step 5: Thêm method `_showInteractiveQuestion(q)`**
+- [x] **Step 5: Thêm method `_showInteractiveQuestion(q)`**
 
 Thêm sau `_makeSpeakSequenceCallbacks`:
 
@@ -1079,7 +1079,7 @@ Thêm sau `_makeSpeakSequenceCallbacks`:
   }
 ```
 
-- [ ] **Step 6: Sửa `_handleChatMessage` — gate đầu hàm (line 1112)**
+- [x] **Step 6: Sửa `_handleChatMessage` — gate đầu hàm (line 1112)**
 
 Thay thế đầu method (trước line 1112 — thêm dòng đầu tiên):
 
@@ -1092,7 +1092,7 @@ Thay thế đầu method (trước line 1112 — thêm dòng đầu tiên):
 // ... rest of existing code unchanged
 ```
 
-- [ ] **Step 7: Sửa `_setupTTSCallbacks` — guard onStart/onEnd khi interactive mode**
+- [x] **Step 7: Sửa `_setupTTSCallbacks` — guard onStart/onEnd khi interactive mode**
 
 `_showInteractiveQuestion` và `_handleInteractiveAnswer` gọi `this.ttsEngine.speak()` (public) để đọc câu hỏi và xác nhận — khi utterance đó xong, global `ttsEngine.onEnd` (app.js:949-967) sẽ reset `_isTeaching`, set `_justTaught = true`, clear highlight/subtitle, và có thể TỰ CHUYỂN TRANG (`autoRead` + `_lastTaughtWasTitle`) giữa lúc đang chờ trả lời. Cần guard.
 
@@ -1110,7 +1110,7 @@ Thêm dòng đầu tiên vào cả 2 handler trong `_setupTTSCallbacks` (app.js 
 
 Lý do: `this._chunks` chỉ set trong interactive sequence (từ lúc bắt đầu tới khi `onEnd` của sequence reset nó về `null`). Khi `_showInteractiveQuestion`/`_handleInteractiveAnswer` gọi `speak()` cho câu hỏi hoặc xác nhận, `_chunks` vẫn đang được set → guard an toàn trả về sớm. Single-utterance mode luôn có `_chunks === null` → không bị ảnh hưởng.
 
-- [ ] **Step 8: Thêm method `_handleInteractiveAnswer(text)` (sau `_handleChatMessage`, ~line 1166)**
+- [x] **Step 8: Thêm method `_handleInteractiveAnswer(text)` (sau `_handleChatMessage`, ~line 1166)**
 
 Thêm sau line 1166 (`}` đóng `_handleChatMessage`):
 
@@ -1199,7 +1199,7 @@ Thêm sau line 1166 (`}` đóng `_handleChatMessage`):
   }
 ```
 
-- [ ] **Step 9: Sửa Stop handler (lines 917-927)**
+- [x] **Step 9: Sửa Stop handler (lines 917-927)**
 
 Thay thế block stop handler (lines 917-927) bằng:
 
@@ -1221,7 +1221,7 @@ Thay thế block stop handler (lines 917-927) bằng:
     });
 ```
 
-- [ ] **Step 10: Sửa `_navigatePage` — reset interactive state (lines 670-701)**
+- [x] **Step 10: Sửa `_navigatePage` — reset interactive state (lines 670-701)**
 
 Sau line 679 (`this._justTaught = false;`), thêm các dòng reset interactive state:
 
@@ -1234,7 +1234,7 @@ Sau line 679 (`this._justTaught = false;`), thêm các dòng reset interactive s
 
 Chèn sau line 679, trước line 680 (`const quizNowBtn = ...`).
 
-- [ ] **Step 11: Sửa `_updateVoiceStatus` — case `done` khi đang chờ (line 1052-1059)**
+- [x] **Step 11: Sửa `_updateVoiceStatus` — case `done` khi đang chờ (line 1052-1059)**
 
 Thay thế case `done` (lines 1052-1059) bằng:
 
@@ -1249,7 +1249,7 @@ Thay thế case `done` (lines 1052-1059) bằng:
         break;
 ```
 
-- [ ] **Step 12: Sửa `_showApiKeyModal` — đọc `interactiveTeach` vào toggle (line 424)**
+- [x] **Step 12: Sửa `_showApiKeyModal` — đọc `interactiveTeach` vào toggle (line 424)**
 
 Sau line 424 (`document.getElementById('teach-then-quiz-toggle').checked = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;`), thêm:
 
@@ -1257,7 +1257,7 @@ Sau line 424 (`document.getElementById('teach-then-quiz-toggle').checked = s.tea
     document.getElementById('interactive-teach-toggle').checked = s.interactiveTeach !== undefined ? s.interactiveTeach : true;
 ```
 
-- [ ] **Step 13: Sửa `_setupSettingsBtn` — lưu `interactiveTeach` từ toggle (line 485-486)**
+- [x] **Step 13: Sửa `_setupSettingsBtn` — lưu `interactiveTeach` từ toggle (line 485-486)**
 
 Sau line 485 (`teachThenQuiz: document.getElementById('teach-then-quiz-toggle').checked,`), thêm:
 
@@ -1265,7 +1265,7 @@ Sau line 485 (`teachThenQuiz: document.getElementById('teach-then-quiz-toggle').
         interactiveTeach: document.getElementById('interactive-teach-toggle').checked,
 ```
 
-- [ ] **Step 14: Thêm helper `_updateSubtitleForChunk` (sau `_clearSubtitle`, tìm hàm này)**
+- [x] **Step 14: Thêm helper `_updateSubtitleForChunk` (sau `_clearSubtitle`, tìm hàm này)**
 
 Tìm vị trí `_clearSubtitle` trong app.js (khoảng line 620-630). Sau method đó, thêm:
 
@@ -1279,7 +1279,7 @@ Tìm vị trí `_clearSubtitle` trong app.js (khoảng line 620-630). Sau method
   }
 ```
 
-- [ ] **Step 15: Disable seek slider khi có interactive questions**
+- [x] **Step 15: Disable seek slider khi có interactive questions**
 
 Trong `_makeSpeakSequenceCallbacks` > `onChunkStart`, thêm dòng disable seek bar (seek bar disabled khi có câu hỏi):
 
@@ -1290,28 +1290,28 @@ Trong `_makeSpeakSequenceCallbacks` > `onChunkStart`, thêm dòng disable seek b
 
 Thực tế, ta disable seek slider trong `onChunkStart` luôn — vì khi có interactive_questions, seek bar không hoạt động.
 
-- [ ] **Step 16: Verify syntax**
+- [x] **Step 16: Verify syntax**
 
 ```bash
 node --check js/app.js
 ```
 Expected: exit 0
 
-- [ ] **Step 17: Verify tất cả file JS parse OK**
+- [x] **Step 17: Verify tất cả file JS parse OK**
 
 ```bash
 node --check js/ai-engine.js && node --check js/tts-engine.js && node --check js/app.js && node --check js/chat.js && node --check js/quiz.js && node --check js/flashcards.js
 ```
 Expected: exit 0
 
-- [ ] **Step 18: Regression — chạy tất cả unit test cũ**
+- [x] **Step 18: Regression — chạy tất cả unit test cũ**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs && node tests/interactive-settings.test.mjs && node tests/interactive-parse.test.mjs && node tests/sequence-logic.test.mjs
 ```
 Expected: tất cả pass, exit 0
 
-- [ ] **Step 19: Commit**
+- [x] **Step 19: Commit**
 
 ```bash
 git add js/app.js
