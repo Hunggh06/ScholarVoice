@@ -29,6 +29,8 @@ export class AIEngine {
 
     this._abortController = null;
     this.pageCache = new Map();
+    // Cache quiz theo trang: key `quiz_<page>_<provider>`
+    this.quizCache = new Map();
     this.teachingStyle = saved.teachingStyle || 'medium';
     this.customStyle = saved.customStyle || '';
 
@@ -513,6 +515,62 @@ Trả lời bằng JSON với 2 trường:
     return summary;
   }
 
+  /**
+   * Tạo quiz 3 câu hỏi cho một trang. Cache theo trang + provider.
+   * @param {number} pageNum
+   * @param {string} pageText - text đã trích xuất của trang
+   * @param {string|null} imageBase64 - ảnh trang (provider có vision thì dùng)
+   * @returns {Promise<Array>} mảng câu hỏi đã validate
+   */
+  async generateQuiz(pageNum, pageText, imageBase64) {
+    const cacheKey = `quiz_${pageNum}_${this.provider}`;
+    const cached = this.quizCache.get(cacheKey);
+    if (cached) return cached;
+
+    if (!pageText || !pageText.trim()) {
+      throw new Error('Trang này không có nội dung chữ để tạo câu hỏi.');
+    }
+
+    const systemPrompt = `Bạn là giảng viên tạo câu hỏi trắc nghiệm để kiểm tra hiểu bài.
+Tạo CHÍNH XÁC 3 câu hỏi từ nội dung trang tài liệu. Độ khó tăng dần.
+Câu hỏi phải bám sát nội dung trang, KHÔNG bịa kiến thức ngoài.
+Mỗi câu hỏi gồm: type "mcq" (có options 4 đáp án + correct_index từ 0 đến 3) hoặc "tf" (có correct true/false), question, explanation (1-2 câu giải thích vì sao đúng).
+Trả về JSON duy nhất, không thêm bất kỳ text nào ngoài JSON:
+{
+  "questions": [
+    {"type":"mcq","question":"...","options":["A","B","C","D"],"correct_index":0,"explanation":"..."},
+    {"type":"tf","question":"...","correct":true,"explanation":"..."}
+  ]
+}
+NGÔN NGỮ: Luôn dùng TIẾNG VIỆT.
+explanation phải đọc được bằng giọng: KHÔNG ký hiệu toán học, KHÔNG markdown, KHÔNG ký tự đặc biệt.`;
+
+    const userPrompt = `Nội dung trang tài liệu (dòng bắt đầu bằng ## là tiêu đề, dòng trống ngăn cách các phần):
+
+${pageText}
+
+Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
+
+    const hasImage = imageBase64 && imageBase64.length > 100;
+    const hasVision = this.hasVision();
+    const effectiveImage = (hasImage && hasVision) ? imageBase64 : null;
+
+    const rawResponse = await this._callAPI(userPrompt, effectiveImage, systemPrompt, true, pageText);
+
+    const questions = validateQuizQuestions(rawResponse);
+    if (questions.length === 0) {
+      throw new Error('AI không tạo được câu hỏi hợp lệ. Bấm 🔁 để thử lại.');
+    }
+
+    this.quizCache.set(cacheKey, questions);
+    return questions;
+  }
+
+  /** Xoá quiz cache của một trang (dùng cho nút "Làm lại" — sinh câu mới) */
+  clearQuizForPage(pageNum) {
+    this.quizCache.delete(`quiz_${pageNum}_${this.provider}`);
+  }
+
   clearCache() {
     this.pageCache.clear();
     this.docContext = [];
@@ -842,4 +900,53 @@ Trả lời bằng JSON với 2 trường:
     throw lastError || new Error('Lỗi không xác định');
   }
 
+}
+
+/**
+ * Parse + validate phản hồi quiz từ AI (JSON). Thuần — test được bằng Node.
+ * @param {string|null|undefined} raw - text thô từ AI
+ * @returns {Array} mảng câu hỏi hợp lệ [{type, question, options?, correct_index?, correct?, explanation}]
+ */
+export function validateQuizQuestions(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Thử lấy block JSON từ markdown ```json ... ```
+    const m = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (m) {
+      try { parsed = JSON.parse(m[1]); } catch { /* fallback */ }
+    }
+  }
+  if (!parsed) {
+    // Fallback cuối: tìm object có "questions"
+    const m2 = raw.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+    if (m2) {
+      try { parsed = JSON.parse(m2[0]); } catch { /* fallback */ }
+    }
+  }
+
+  const list = parsed && Array.isArray(parsed.questions) ? parsed.questions : [];
+  const out = [];
+  for (const q of list) {
+    if (!q || typeof q !== 'object') continue;
+    const question = typeof q.question === 'string' ? q.question.trim() : '';
+    const explanation = typeof q.explanation === 'string' ? q.explanation.trim() : '';
+    if (!question) continue;
+
+    if (q.type === 'mcq') {
+      if (!Array.isArray(q.options) || q.options.length !== 4) continue;
+      if (!q.options.every(o => typeof o === 'string' && o.trim())) continue;
+      const ci = Number(q.correct_index);
+      if (!Number.isInteger(ci) || ci < 0 || ci > 3) continue;
+      out.push({ type: 'mcq', question, options: q.options.map(o => o.trim()), correct_index: ci, explanation });
+    } else if (q.type === 'tf') {
+      if (typeof q.correct !== 'boolean') continue;
+      out.push({ type: 'tf', question, correct: q.correct, explanation });
+    }
+    // type khác → bỏ qua câu đó
+  }
+  return out;
 }
