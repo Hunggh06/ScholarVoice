@@ -81,6 +81,10 @@
         </select>
       </div>
 
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;cursor:pointer;">
+        <input type="checkbox" id="teach-then-quiz-toggle" checked style="accent-color:var(--accent);"> Tự động đề xuất kiểm tra sau mỗi trang giảng
+      </label>
+
       <div class="modal-actions">
         <button id="close-modal" class="btn-ghost">Đóng</button>
         <button id="save-api-key" class="btn-primary">Lưu cài đặt</button>
@@ -241,6 +245,7 @@
             <button id="btn-stop" class="voice-btn" title="Dừng toàn bộ" disabled>⏹</button>
             <button id="btn-retry" class="voice-btn retry-btn hidden" title="Thử lại gọi AI">🔁</button>
           </div>
+          <button id="quiz-now-btn" class="voice-btn quiz-now-btn hidden" title="Kiểm tra kiến thức trang vừa giảng">📝 Kiểm tra ngay</button>
         </div>
       </div>
 
@@ -287,6 +292,7 @@
         <div id="quiz-header">
           <span id="quiz-title">📝 Quiz</span>
           <span id="quiz-best-score" class="hidden"></span>
+          <button id="quiz-review-btn" class="btn-ghost hidden" style="font-size:0.75rem;padding:4px 10px;" title="Ôn tập các trang có điểm thấp">📚 Ôn tập trang yếu</button>
         </div>
         <div id="quiz-body">
           <div id="quiz-empty" class="welcome-message">
@@ -320,6 +326,10 @@
               <button id="quiz-retry-btn" class="btn-primary">🔄 Làm lại (câu hỏi mới)</button>
               <button id="quiz-close-btn" class="btn-ghost">Đóng</button>
             </div>
+          </div>
+          <div id="quiz-review-report" class="hidden" style="padding:16px;display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
+            <div id="quiz-review-list"></div>
+            <button id="quiz-review-done-btn" class="btn-primary" style="align-self:center;">✅ Đóng báo cáo</button>
           </div>
         </div>
       </div>
