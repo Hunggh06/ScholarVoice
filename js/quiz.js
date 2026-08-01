@@ -30,6 +30,10 @@ export class QuizManager {
     this.quizReviewReport = document.getElementById('quiz-review-report');
     this.quizReviewList = document.getElementById('quiz-review-list');
     this.quizReviewDoneBtn = document.getElementById('quiz-review-done-btn');
+    this.examSection = document.getElementById('exam-section');
+    this.examStartBtn = document.getElementById('exam-start-btn');
+    this.examCountSelect = document.getElementById('exam-count');
+    this.examStatus = document.getElementById('exam-status');
 
     this.questions = [];
     this.currentIndex = 0;
@@ -42,6 +46,8 @@ export class QuizManager {
     this._weakPages = [];
     this._reviewIndex = -1;
     this._reviewReport = {};
+    this._examMode = false;
+    this._examPages = [];
 
     this._setupEvents();
   }
@@ -55,6 +61,7 @@ export class QuizManager {
     this.quizCloseBtn.addEventListener('click', () => this._resetToEmpty());
     this.quizReviewBtn.addEventListener('click', () => this._startWeakPageReview());
     this.quizReviewDoneBtn.addEventListener('click', () => this._closeReviewReport());
+    this.examStartBtn.addEventListener('click', () => this.startExam());
     this.quizOptions.addEventListener('click', (e) => {
       const btn = e.target.closest('.quiz-option');
       if (!btn) return;
@@ -85,6 +92,7 @@ export class QuizManager {
 
   /** Gọi khi tab quiz mở — tự sinh nếu chưa có quiz cho trang hiện tại */
   _onTabOpened() {
+    if (this._examMode) return;
     this._syncForPage(this.app.pdfViewer.currentPage);
     this.questions = [];
     this.currentIndex = 0;
@@ -96,6 +104,7 @@ export class QuizManager {
   /** App gọi khi đổi trang — cập nhật tiêu đề + điểm, tự sinh nếu tab đang mở */
   onPageChanged(pageNum) {
     if (this._reviewMode) return;
+    if (this._examMode) return;
     this._syncForPage(pageNum);
     if (!this.quizArea.classList.contains('hidden')) {
       this.questions = [];
@@ -114,10 +123,12 @@ export class QuizManager {
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
     this._syncForPage(this.app.pdfViewer.currentPage);
     this._updateReviewBtn();
+    this._updateExamSection();
   }
 
   /** Cập nhật tiêu đề + điểm cao nhất của trang */
   _syncForPage(pageNum) {
+    if (this._examMode) return;
     this.quizTitle.textContent = `📝 Quiz trang ${pageNum}`;
     const score = this._getScore(pageNum);
     if (score && score.attempts > 0) {
@@ -131,6 +142,8 @@ export class QuizManager {
 
   /** Reset về trạng thái trống (chưa làm) */
   _resetToEmpty() {
+    this._examMode = false;
+    this._examPages = [];
     this.questions = [];
     this.currentIndex = 0;
     this.correctCount = 0;
@@ -143,6 +156,7 @@ export class QuizManager {
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
     this.quizReviewReport.classList.add('hidden');
     this._updateReviewBtn();
+    this._updateExamSection();
   }
 
   /** Số câu hỏi từ dropdown (3/5/10, mặc định 3) */
@@ -151,18 +165,17 @@ export class QuizManager {
     return [3, 5, 10].includes(v) ? v : 3;
   }
 
+  _getExamCount() {
+    const v = parseInt(this.examCountSelect?.value, 10);
+    return [3, 5, 10].includes(v) ? v : 3;
+  }
+
   _getWeakPages() {
     const filename = this.app._pdfFileName;
     if (!filename) return [];
     try {
       const all = JSON.parse(localStorage.getItem('quiz_scores_' + filename) || '{}');
-      return Object.entries(all)
-        .filter(([, score]) => {
-          const pct = score.best / (score.total || 3);
-          return pct < 0.6;
-        })
-        .map(([k]) => parseInt(k, 10))
-        .sort((a, b) => a - b);
+      return getWeakPagesFromScores(all);
     } catch {
       return [];
     }
@@ -175,6 +188,116 @@ export class QuizManager {
     }
     const weak = this._getWeakPages();
     this.quizReviewBtn.classList.toggle('hidden', weak.length === 0);
+  }
+
+  _updateExamSection() {
+    if (!this.app.pdfViewer.isLoaded) {
+      this.examSection.classList.add('hidden');
+      return;
+    }
+    this.examSection.classList.remove('hidden');
+    const weak = this._getWeakPages();
+    if (weak.length === 0) {
+      this.examStartBtn.disabled = true;
+      this.examStatus.textContent = 'Chưa có trang yếu — làm quiz các trang để tạo đề ôn.';
+    } else {
+      this.examStartBtn.disabled = false;
+      this.examStatus.textContent = `${weak.length} trang yếu — sẵn sàng tạo đề ôn.`;
+    }
+  }
+
+  startExam() {
+    if (!this.app.pdfViewer.isLoaded) {
+      this.app._showToast('Vui lòng tải file PDF trước', 'error');
+      return;
+    }
+    if (!this.app.aiEngine.isConfigured) {
+      this.app._showApiKeyModal();
+      return;
+    }
+    if (this._generating) return;
+
+    this._examPages = this._getWeakPages();
+    if (this._examPages.length === 0) {
+      this.examStartBtn.disabled = true;
+      this.examStatus.textContent = 'Chưa có trang yếu — làm quiz các trang để tạo đề ôn.';
+      return;
+    }
+
+    this._examMode = true;
+    this.questions = [];
+    this.currentIndex = 0;
+    this.correctCount = 0;
+    this.answered = false;
+
+    this._generateExam();
+  }
+
+  async _generateExam() {
+    if (!this._examPages.length) return;
+    this._generating = true;
+    const genId = ++this._genSeq;
+
+    if (!this.app._isTeaching) {
+      this.app.ttsEngine.stop();
+    }
+
+    this.examSection.classList.add('hidden');
+    this.quizResult.classList.add('hidden');
+    this.quizQuestion.classList.add('hidden');
+    this.quizEmpty.classList.add('hidden');
+    this.quizLoading.classList.remove('hidden');
+    this.app._updateVoiceStatus('analyzing', 'Đang tạo đề ôn...');
+
+    const count = this._getExamCount();
+    this.questions = [];
+
+    try {
+      for (let i = 0; i < this._examPages.length; i++) {
+        const pageNum = this._examPages[i];
+        this.app._updateVoiceStatus('analyzing', `Đang tạo câu hỏi cho trang ${pageNum} (${i + 1}/${this._examPages.length})...`);
+
+        this.app.aiEngine.clearQuizForPage(pageNum);
+
+        await this.app.pdfViewer.renderPage(pageNum);
+        const pageText = await this.app.pdfViewer.getPageText();
+        const imageBase64 = this.app.pdfViewer.getPageImageBase64();
+
+        const qs = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64, count);
+
+        if (genId !== this._genSeq) return;
+
+        for (const q of qs) {
+          q._page = pageNum;
+        }
+        this.questions.push(...qs);
+      }
+
+      if (genId !== this._genSeq) {
+        this.quizLoading.classList.add('hidden');
+        this._resetToEmpty();
+        return;
+      }
+
+      this.questions.sort((a, b) => a._page - b._page);
+
+      this.currentIndex = 0;
+      this.correctCount = 0;
+      this.answered = false;
+
+      this.quizLoading.classList.add('hidden');
+      this.quizQuestion.classList.remove('hidden');
+      this._renderQuestion();
+    } catch (err) {
+      if (err.message === 'Đã hủy yêu cầu.') return;
+      if (genId !== this._genSeq) return;
+      console.error('Lỗi tạo đề ôn:', err);
+      this.quizLoading.classList.add('hidden');
+      this._resetToEmpty();
+      this.app._showToast('Không tạo được đề ôn. Thử lại.', 'error');
+    } finally {
+      if (genId === this._genSeq) this._generating = false;
+    }
   }
 
   _startWeakPageReview() {
@@ -323,7 +446,18 @@ export class QuizManager {
   _renderQuestion() {
     const q = this.questions[this.currentIndex];
     this.answered = false;
-    this.quizQuestionText.textContent = `Câu ${this.currentIndex + 1}/${this.questions.length}: ${q.question}`;
+
+    if (this._examMode) {
+      this.quizQuestionText.textContent = `📝 Đề ôn (${this.questions.length} câu) — Câu ${this.currentIndex + 1}/${this.questions.length}: ${q.question}`;
+      const existingSrc = this.quizQuestionText.querySelector('.exam-question-source');
+      if (existingSrc) existingSrc.remove();
+      const srcLabel = document.createElement('div');
+      srcLabel.className = 'exam-question-source';
+      srcLabel.textContent = `(Trang ${q._page})`;
+      this.quizQuestionText.appendChild(srcLabel);
+    } else {
+      this.quizQuestionText.textContent = `Câu ${this.currentIndex + 1}/${this.questions.length}: ${q.question}`;
+    }
 
     this.quizOptions.innerHTML = '';
     const labels = q.type === 'tf' ? ['✅ Đúng', '❌ Sai'] : ['A', 'B', 'C', 'D'];
@@ -361,6 +495,7 @@ export class QuizManager {
 
     const isCorrect = idx === correctIdx;
     if (isCorrect) this.correctCount++;
+    if (this._examMode) q._userCorrect = isCorrect;
 
     this.quizFeedback.className = isCorrect ? 'quiz-feedback correct' : 'quiz-feedback wrong';
     this.quizFeedback.innerHTML = (isCorrect ? '✅ Chính xác! ' : '❌ Chưa đúng. ') + this._escapeHtml(q.explanation || '');
@@ -383,6 +518,10 @@ export class QuizManager {
 
   /** Tổng kết + lưu điểm */
   _showResult() {
+    if (this._examMode) {
+      this._showExamResult();
+      return;
+    }
     const pageNum = this.app.pdfViewer.currentPage;
     this._saveScore(pageNum, this.correctCount, this.questions.length);
 
@@ -391,6 +530,30 @@ export class QuizManager {
     this.quizResultScore.innerHTML = `🎯 Bạn trả lời đúng <strong>${this.correctCount}/${this.questions.length}</strong> câu.`;
     this._syncForPage(pageNum);
     if (this._reviewMode) this._onReviewPageDone(pageNum);
+  }
+
+  _showExamResult() {
+    this.quizQuestion.classList.add('hidden');
+    this.quizResult.classList.remove('hidden');
+
+    const perPage = {};
+    for (const q of this.questions) {
+      const p = q._page;
+      if (!perPage[p]) perPage[p] = { correct: 0, total: 0 };
+      perPage[p].total++;
+      if (q._userCorrect) perPage[p].correct++;
+    }
+
+    let reportHtml = `🎯 Bạn trả lời đúng <strong>${this.correctCount}/${this.questions.length}</strong> câu.<br><br>`;
+    reportHtml += '<table class="exam-report-table">';
+    const pages = Object.keys(perPage).map(Number).sort((a, b) => a - b);
+    for (const p of pages) {
+      const r = perPage[p];
+      reportHtml += `<tr><td><strong>Trang ${p}</strong></td><td>${r.correct}/${r.total}</td></tr>`;
+    }
+    reportHtml += '</table>';
+
+    this.quizResultScore.innerHTML = reportHtml;
   }
 
   /** Làm lại: xoá cache quiz trang → sinh câu mới */
@@ -444,4 +607,21 @@ export class QuizManager {
   _escapeHtml(text) {
     return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+}
+
+/**
+ * Pure helper — lọc trang yếu từ object scores.
+ * Input: scores = { "1": { best: 2, total: 3 }, "2": { best: 1, total: 5 } }
+ * Output: mảng pageNum tăng dần của các trang có total > 0 và best/total < threshold
+ */
+export function getWeakPagesFromScores(scores, threshold = 0.6) {
+  return Object.entries(scores)
+    .filter(([, score]) => {
+      if (!score || typeof score !== 'object') return false;
+      const total = score.total || 0;
+      if (total <= 0) return false;
+      return score.best / total < threshold;
+    })
+    .map(([k]) => parseInt(k, 10))
+    .sort((a, b) => a - b);
 }
