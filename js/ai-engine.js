@@ -33,6 +33,7 @@ export class AIEngine {
     this.quizCache = new Map();
     this.teachingStyle = saved.teachingStyle || 'medium';
     this.customStyle = saved.customStyle || '';
+    this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.teachThenQuiz : true;
 
     // Bộ nhớ ngữ cảnh toàn bài: mỗi trang đã giảng lưu tóm tắt
     this.docContext = [];
@@ -58,6 +59,7 @@ export class AIEngine {
     if (settings.deepseekModel !== undefined) this.deepseekModel = settings.deepseekModel;
     if (settings.teachingStyle !== undefined) this.teachingStyle = settings.teachingStyle;
     if (settings.customStyle !== undefined) this.customStyle = settings.customStyle;
+    if (settings.teachThenQuiz !== undefined) this.teachThenQuiz = settings.teachThenQuiz;
 
     localStorage.setItem('ai_settings', JSON.stringify({
       provider: this.provider,
@@ -72,6 +74,7 @@ export class AIEngine {
       deepseekModel: this.deepseekModel,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
+      teachThenQuiz: this.teachThenQuiz,
     }));
     // Chỉ xoá cache nếu đổi provider hoặc đổi style
     if (oldProvider !== this.provider) {
@@ -96,6 +99,7 @@ export class AIEngine {
       deepseekModel: this.deepseekModel,
       teachingStyle: this.teachingStyle,
       customStyle: this.customStyle,
+      teachThenQuiz: this.teachThenQuiz,
     };
   }
 
