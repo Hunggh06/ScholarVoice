@@ -1,6 +1,6 @@
 # Quiz bám nội dung + số câu tuỳ chọn — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Câu hỏi quiz bám sát kiến thức môn học trong trang (cấm câu hỏi meta/số trang/ngoài lề) + dropdown chọn số câu 3/5/10, điểm số hiển thị động /N.
 
@@ -17,7 +17,7 @@
 **Files:**
 - Modify: `js/ai-engine.js` (generateQuiz ~534-583, clearQuizForPage ~585-588)
 
-- [ ] **Step 1: Sửa signature + cache key + systemPrompt của `generateQuiz()`**
+- [x] **Step 1: Sửa signature + cache key + systemPrompt của `generateQuiz()`**
 
 Hiện tại `generateQuiz` (lines 534-583) có signature `generateQuiz(pageNum, pageText, imageBase64)`, cache key `quiz_${pageNum}_${this.provider}`, systemPrompt `Tạo CHÍNH XÁC 3 câu hỏi`. Thay bằng:
 
@@ -87,7 +87,7 @@ Hãy tạo quiz theo đúng định dạng JSON yêu cầu ở trên.`;
 6. Cache set: `this.quizCache.set(cacheKey, questions)` — đã dùng cacheKey mới
 7. userPrompt, _callAPI, validateQuizQuestions: giữ nguyên
 
-- [ ] **Step 2: Sửa `clearQuizForPage(pageNum)` (lines 585-588)**
+- [x] **Step 2: Sửa `clearQuizForPage(pageNum)` (lines 585-588)**
 
 Hiện tại xoá MỘT key cụ thể. Sửa thành xoá THEO PREFIX (mọi số câu):
 
@@ -109,7 +109,7 @@ Thay thế hoàn toàn block hiện tại (lines 585-588):
   }
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `node --check js/ai-engine.js`
 Expected: exit 0
@@ -118,7 +118,7 @@ Run: `node tests/quiz-validate.test.mjs`
 Expected: `✅ quiz-validate: tất cả test pass`, exit 0
 (Giải thích: `validateQuizQuestions` không đổi — test vẫn pass)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add js/ai-engine.js
@@ -133,7 +133,7 @@ git commit -m "feat: add count param and content-bound prompt to generateQuiz"
 - Modify: `index.html` (quiz empty area ~292-296)
 - Modify: `css/style.css` (cuối block quiz, ~615)
 
-- [ ] **Step 1: Thêm dropdown vào `#quiz-empty` trong `index.html`**
+- [x] **Step 1: Thêm dropdown vào `#quiz-empty` trong `index.html`**
 
 Hiện tại `#quiz-empty` (lines 292-296):
 ```html
@@ -161,7 +161,7 @@ Sửa thành (wrap nút + dropdown trong `.quiz-start-controls`, GIỮ NGUYÊN `
           </div>
 ```
 
-- [ ] **Step 2: Thêm CSS vào cuối block quiz trong `style.css`**
+- [x] **Step 2: Thêm CSS vào cuối block quiz trong `style.css`**
 
 Thêm vào sau dòng 615 (`#quiz-empty .btn-primary { margin-top:8px; }`) trong `css/style.css`:
 
@@ -177,7 +177,7 @@ Thêm vào sau dòng 615 (`#quiz-empty .btn-primary { margin-top:8px; }`) trong 
 
 (Lưu ý: các biến CSS `--text-secondary`, `--text-primary`, `--radius-sm` đều đã tồn tại trong `:root` — xác nhận tại `style.css:24,25,29`.)
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Start server:
 ```bash
@@ -197,7 +197,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add index.html css/style.css
@@ -211,7 +211,7 @@ git commit -m "feat: add quiz question count dropdown (3/5/10)"
 **Files:**
 - Modify: `js/quiz.js` (constructor, `_syncForPage`, `_generateForCurrentPage`, `_showResult`, `_saveScore`, `onPdfLoaded`, `_resetToEmpty`)
 
-- [ ] **Step 1: Constructor — thêm `quizCountSelect`**
+- [x] **Step 1: Constructor — thêm `quizCountSelect`**
 
 Sau dòng 17 (`this.quizStartBtn = document.getElementById('quiz-start-btn');`), thêm:
 
@@ -219,7 +219,7 @@ Sau dòng 17 (`this.quizStartBtn = document.getElementById('quiz-start-btn');`),
     this.quizCountSelect = document.getElementById('quiz-count');
 ```
 
-- [ ] **Step 2: Thêm method `_getQuizCount()`**
+- [x] **Step 2: Thêm method `_getQuizCount()`**
 
 Thêm vào class (trước `_generateForCurrentPage`, sau constructor hoặc sau `_setupEvents`):
 
@@ -231,7 +231,7 @@ Thêm vào class (trước `_generateForCurrentPage`, sau constructor hoặc sau
   }
 ```
 
-- [ ] **Step 3: `_generateForCurrentPage()` — truyền count**
+- [x] **Step 3: `_generateForCurrentPage()` — truyền count**
 
 Line 150 hiện tại:
 ```javascript
@@ -243,7 +243,7 @@ Sửa thành:
       const questions = await this.app.aiEngine.generateQuiz(pageNum, pageText, imageBase64, this._getQuizCount());
 ```
 
-- [ ] **Step 4: `_showResult()` — lưu total**
+- [x] **Step 4: `_showResult()` — lưu total**
 
 Line 247 hiện tại:
 ```javascript
@@ -255,7 +255,7 @@ Sửa thành:
     this._saveScore(pageNum, this.correctCount, this.questions.length);
 ```
 
-- [ ] **Step 5: `_saveScore()` — thêm field `total`**
+- [x] **Step 5: `_saveScore()` — thêm field `total`**
 
 Sửa signature (line 284) và logic lưu:
 
@@ -285,7 +285,7 @@ Các điểm thay đổi so với hiện tại (lines 284-300):
 2. Default record: `{ best: 0, last: 0, lastTime: 0, attempts: 0 }` → `{ best: 0, last: 0, lastTime: 0, attempts: 0, total: 0 }`
 3. Sau `cur.attempts += 1;` thêm: `cur.total = total;`
 
-- [ ] **Step 6: `_syncForPage()` — hiển thị điểm /N động**
+- [x] **Step 6: `_syncForPage()` — hiển thị điểm /N động**
 
 Line 99 hiện tại:
 ```javascript
@@ -300,7 +300,7 @@ Sửa thành:
 > **Lý do fallback `|| 3` (không dùng `this.questions.length`):**
 > `_syncForPage(pageNum)` chạy Ở DÒNG 75 trong `onPageChanged`, **trước khi** `this.questions = []` được gán ở dòng 77. Nếu dùng `this.questions.length` làm fallback, có thể hiển thị sai số câu của trang cũ. Record cũ (không có trường `total`) luôn là quiz 3 câu — fallback 3 là chính xác.
 
-- [ ] **Step 7: `onPdfLoaded()` — bỏ số "3" trong text**
+- [x] **Step 7: `onPdfLoaded()` — bỏ số "3" trong text**
 
 Line 90 hiện tại:
 ```javascript
@@ -312,7 +312,7 @@ Sửa thành:
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
 ```
 
-- [ ] **Step 8: `_resetToEmpty()` — bỏ số "3" trong text**
+- [x] **Step 8: `_resetToEmpty()` — bỏ số "3" trong text**
 
 Line 117 hiện tại:
 ```javascript
@@ -324,12 +324,12 @@ Sửa thành:
     this.quizEmptyText.textContent = 'Tạo câu hỏi trắc nghiệm cho trang đang xem.';
 ```
 
-- [ ] **Step 9: Verify**
+- [x] **Step 9: Verify**
 
 Run: `node --check js/quiz.js`
 Expected: exit 0
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add js/quiz.js
@@ -349,12 +349,12 @@ git commit -m "feat: wire quiz count dropdown and dynamic score display"
 - Route pattern `**generativelanguage.googleapis.com/**` khớp URL Gemini thật (xác nhận: `_callGeminiAPI` line 851 build URL `this.geminiBaseUrl/models/.../generateContent?key=...`).
 - Response shape phải khớp cách app parse: `data.candidates[0].content.parts[0].text` (`_callGeminiAPI` line 906).
 - `addInitScript` đặt `localStorage` với `provider: 'gemini'` + `apiKey: 'fake-key'` trước khi page load → app constructor đọc được → `isConfigured = true` → không bị modal API key chặn.
-- `#quiz-retry-btn` (index.html line 312) nằm trong `#quiz-result` (view kết quả), nhưng click `force:true` vẫn trigger `_retry()` ngay cả khi đang ở question view (quiz.js line 256 gọi `clearQuizForPage` + `_generateForCurrentPage`).
-- `#quiz-count` nằm trong `#quiz-empty` — hidden khi đang xem questions. `page.selectOption` hoạt động trên hidden elements. Chính xác để test "đổi dropdown không tự sinh".
+- `#quiz-retry-btn` nằm trong `#quiz-result` (hidden) → Playwright click không được, dùng `page.evaluate(() => document.querySelector('#quiz-retry-btn').click())` để trigger `_retry()`.
+- `#quiz-count` nằm trong `#quiz-empty` (hidden khi đang xem questions) → `page.selectOption` phải dùng `{ force: true }`. Chính xác để test "đổi dropdown không tự sinh".
 - `_onTabOpened()` (quiz.js line 64) tự động sinh quiz khi mở tab → TEST 1 dựa vào hành vi này (không cần click nút "Tạo câu hỏi"). PDF thật (fpdf) là bắt buộc để `pdfViewer.isLoaded = true`.
 - Nếu python3/fpdf bị thiếu → test fail sớm với message rõ ràng (fpdf 2.8.7 đã xác nhận cài sẵn trên máy này).
 
-- [ ] **Step 1: Tạo QA test script**
+- [x] **Step 1: Tạo QA test script**
 
 Tạo file `tests/qa-quiz-count.mjs`:
 
@@ -468,7 +468,7 @@ console.log('✅ QA quiz count PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy QA test**
+- [x] **Step 2: Chạy QA test**
 
 Start server:
 ```bash
@@ -488,7 +488,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/qa-quiz-count.mjs
@@ -502,7 +502,7 @@ git commit -m "test: add QA for quiz count dropdown"
 **Files:**
 - Modify: `README.md` (dòng quiz features ~16)
 
-- [ ] **Step 1: Sửa README**
+- [x] **Step 1: Sửa README**
 
 Line 16 hiện tại:
 ```markdown
@@ -514,14 +514,14 @@ Sửa thành:
 - 📝 **Quiz trắc nghiệm** — AI tự tạo câu hỏi trắc nghiệm bám sát nội dung trang (3/5/10 câu tuỳ chọn), chấm điểm ngay, đọc bằng giọng, lưu điểm theo trang
 ```
 
-- [ ] **Step 2: Chạy regression test**
+- [x] **Step 2: Chạy regression test**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs
 ```
 Expected: `✅ title-detect: tất cả test pass` + `✅ quiz-validate: tất cả test pass`, exit 0
 
-- [ ] **Step 3: Chạy smoke test**
+- [x] **Step 3: Chạy smoke test**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -536,7 +536,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md
@@ -547,14 +547,14 @@ git commit -m "docs: update README quiz feature description"
 
 ### Task 6: Tổng kiểm tra + kết thúc
 
-- [ ] **Step 1: Kiểm tra git status**
+- [x] **Step 1: Kiểm tra git status**
 
 ```bash
 git status
 ```
 Expected: sạch (ngoài `.omo/` và `docs/superpowers/plans/` nếu plan file vẫn unstaged).
 
-- [ ] **Step 2: Liệt kê commits tạo ra**
+- [x] **Step 2: Liệt kê commits tạo ra**
 
 ```bash
 git log --oneline -5
