@@ -629,3 +629,51 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
 .review-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); }
 .review-item.pass { border-left:3px solid rgba(52,211,153,0.8); }
 .review-item.fail { border-left:3px solid rgba(248,113,113,0.8); }
+
+/* ============================================================
+   FLASHCARDS
+   ============================================================ */
+#flash-area { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+#flash-header {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 20px; border-bottom:1px solid rgba(255,255,255,0.04); flex-shrink:0;
+}
+#flash-title { font-size:0.85rem; font-weight:600; color:var(--text-primary); }
+#flash-body { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; }
+#flash-body .spinner { margin-bottom:12px; }
+#flash-body #flash-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; flex:1; color:var(--text-secondary); font-size:0.9rem; }
+
+#flash-card-view { display:flex; flex-direction:column; align-items:center; gap:16px; flex:1; }
+#flash-progress { font-size:0.8rem; color:var(--text-secondary); text-align:center; margin-bottom:4px; }
+
+#flash-card {
+  width:100%; min-height:200px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius-sm); padding:24px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; transition:all var(--transition); text-align:center;
+}
+#flash-card:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.15); }
+
+#flash-card-front { font-size:1.3rem; font-weight:600; color:var(--text-primary); line-height:1.5; }
+#flash-card-back {
+  font-size:0.95rem; color:var(--text-secondary); line-height:1.6;
+}
+#flash-card.flipped #flash-card-front { display:none; }
+#flash-card.flipped #flash-card-back { display:block; }
+
+#flash-card-back { display:none; }
+
+#flash-speak-btn {
+  width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  color:var(--text-primary); font-size:1rem; cursor:pointer; transition:all var(--transition);
+}
+#flash-speak-btn:hover { background:rgba(0,242,254,0.12); border-color:var(--accent); color:var(--accent); box-shadow:0 0 12px var(--accent-glow); }
+
+#flash-card-actions { display:flex; gap:10px; justify-content:center; margin-top:8px; }
+
+#flash-result { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; flex:1; text-align:center; }
+#flash-result-text { font-size:1.15rem; color:var(--text-primary); line-height:1.6; }
+
+#flash-empty .btn-primary { margin-top:8px; }
