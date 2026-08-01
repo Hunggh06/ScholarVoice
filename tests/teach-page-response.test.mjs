@@ -49,6 +49,11 @@ assert.strictEqual(result.interactive_questions.length, 1, 'T1: 1 interactive qu
 assert.strictEqual(result.interactive_questions[0].after_chunk, 0);
 assert.strictEqual(result.interactive_questions[0].question, 'Câu hỏi kiểm tra?');
 assert.strictEqual(result.isTitleSlide, false, 'T1: isTitleSlide false');
+assert.strictEqual(result.voice_text, 'Nội dung giảng cho chunk 0. Nội dung cho chunk 1. Nội dung cho chunk 2.',
+  'T1: voice_text derived from chunks (not raw JSON)');
+assert.ok(!result.voice_text.includes('voice_chunks'), 'T1: voice_text must not contain raw JSON');
+assert.strictEqual(result.segments.length, 3, 'T1: segments derived from chunks');
+assert.deepStrictEqual(result.segments[0].regionVert, [0, 0.3], 'T1: segments regionVert camelCase');
 console.log('PASS T1: teachPage parses voice_chunks + interactive_questions from mock response');
 
 assert.ok(capturedSystemPrompt && capturedSystemPrompt.includes('TƯƠNG TÁC HỎI ĐÁP'),

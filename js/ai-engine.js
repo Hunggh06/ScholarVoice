@@ -279,6 +279,10 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     }
 
     const voiceChunks = this._extractVoiceChunks(parsed || {}, voiceText);
+    if (expectJson && parsed && !segments && voiceChunks.length > 0) {
+      voiceText = voiceChunks.map(c => c.text).join(' ');
+      segments = voiceChunks.map(c => ({ text: c.text, regionVert: c.regionVert }));
+    }
     const interactiveQuestions = this._extractInteractiveQuestions(parsed || {}, voiceChunks);
 
     // Lưu tóm tắt vào bộ nhớ ngữ cảnh

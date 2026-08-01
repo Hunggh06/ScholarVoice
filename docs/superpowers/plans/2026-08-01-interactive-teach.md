@@ -592,6 +592,8 @@ Thay thế line 263:
     const result = { voice_text: voiceText, segments, isTitleSlide, voice_chunks: voiceChunks, interactive_questions: interactiveQuestions };
 ```
 
+**Lưu ý (fix sau review):** Schema mới trả `voice_chunks` thay `segments` → nếu response không có `segments`, derive `voiceText = chunks.map(c => c.text).join(' ')` và `segments = chunks.map(c => ({text, regionVert}))`. Không derive → `voice_text` giữ raw JSON → TTS đọc to JSON ở chế độ single-utterance (regression nặng).
+
 - [x] **Step 6: Verify syntax**
 
 ```bash
