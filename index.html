@@ -296,6 +296,21 @@
           <button id="quiz-review-btn" class="btn-ghost hidden" style="font-size:0.75rem;padding:4px 10px;" title="Ôn tập các trang có điểm thấp">📚 Ôn tập trang yếu</button>
         </div>
         <div id="quiz-body">
+          <!-- Exam section — luôn hiển thị trừ khi đang làm exam -->
+          <div id="exam-section">
+            <h3 class="exam-title">📝 Đề ôn tổng hợp</h3>
+            <p class="exam-desc">Ôn tập trung các trang có điểm thấp trong một lần.</p>
+            <div class="exam-controls">
+              <label class="quiz-count-label" for="exam-count">Số câu/trang</label>
+              <select id="exam-count">
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+              <button id="exam-start-btn" class="btn-primary" disabled>🎯 Tạo đề ôn</button>
+            </div>
+            <p id="exam-status" class="exam-status-text"></p>
+          </div>
           <div id="quiz-empty" class="welcome-message">
             <div class="welcome-icon">📝</div>
             <p id="quiz-empty-text">Tải PDF lên để tạo câu hỏi trắc nghiệm cho trang đang xem.</p>
