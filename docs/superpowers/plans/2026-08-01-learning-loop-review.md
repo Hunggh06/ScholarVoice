@@ -1,6 +1,6 @@
 # Learning loop: Kiểm tra ngay + Ôn tập trang yếu — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Feature #6 "Kiểm tra ngay sau giảng" (nút "📝 Kiểm tra ngay" trong voice bar sau khi TTS giảng xong) + Feature #1 "Ôn tập trang yếu" (nút "📚 Ôn tập trang yếu" trong tab Quiz, lần lượt kiểm tra lại các trang có điểm < 60%).
 
@@ -14,16 +14,16 @@
 
 ## Trước khi bắt đầu
 
-- [ ] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
+- [x] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
   ```bash
   git status
   ```
-- [ ] Baseline — tất cả file JS hiện tại parse OK:
+- [x] Baseline — tất cả file JS hiện tại parse OK:
   ```bash
   node --check js/ai-engine.js && node --check js/quiz.js && node --check js/app.js && node --check js/chat.js
   ```
   Expected: exit 0
-- [ ] Chạy regression tests hiện có:
+- [x] Chạy regression tests hiện có:
   ```bash
   node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs
   ```
@@ -36,7 +36,7 @@
 **Files:**
 - Modify: `js/ai-engine.js` (constructor ~7-44, saveSettings ~47-83, getSettings ~85-100)
 
-- [ ] **Step 1: Constructor — thêm `this.teachThenQuiz` (line 8)**
+- [x] **Step 1: Constructor — thêm `this.teachThenQuiz` (line 8)**
 
 Hiện tại constructor dòng 8: `const saved = JSON.parse(localStorage.getItem('ai_settings') || '{}');`. Sau các dòng gán biến từ `saved` (lines 10-36), thêm dòng sau line 36 (sau `this.customStyle`):
 
@@ -44,7 +44,7 @@ Hiện tại constructor dòng 8: `const saved = JSON.parse(localStorage.getItem
     this.teachThenQuiz = saved.teachThenQuiz !== undefined ? saved.teachThenQuiz : true;
 ```
 
-- [ ] **Step 2: `saveSettings()` — gán biến (lines 47-61)**
+- [x] **Step 2: `saveSettings()` — gán biến (lines 47-61)**
 
 Sau line 60 (`if (settings.customStyle !== undefined) this.customStyle = settings.customStyle;`), thêm:
 
@@ -52,7 +52,7 @@ Sau line 60 (`if (settings.customStyle !== undefined) this.customStyle = setting
     if (settings.teachThenQuiz !== undefined) this.teachThenQuiz = settings.teachThenQuiz;
 ```
 
-- [ ] **Step 3: `saveSettings()` — lưu localStorage (lines 62-75)**
+- [x] **Step 3: `saveSettings()` — lưu localStorage (lines 62-75)**
 
 Trong object `JSON.stringify({...})` ở lines 62-75, thêm dòng sau line 74 (`customStyle: this.customStyle,`):
 
@@ -60,7 +60,7 @@ Trong object `JSON.stringify({...})` ở lines 62-75, thêm dòng sau line 74 (`
       teachThenQuiz: this.teachThenQuiz,
 ```
 
-- [ ] **Step 4: `getSettings()` — export (lines 85-100)**
+- [x] **Step 4: `getSettings()` — export (lines 85-100)**
 
 Trong return object (lines 86-99), thêm dòng sau line 98 (`customStyle: this.customStyle,`):
 
@@ -68,14 +68,14 @@ Trong return object (lines 86-99), thêm dòng sau line 98 (`customStyle: this.c
       teachThenQuiz: this.teachThenQuiz,
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 node --check js/ai-engine.js
 ```
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add js/ai-engine.js
@@ -98,7 +98,7 @@ Kiểm tra vị trí hiện tại để xác nhận số dòng trước khi sử
 | `#quiz-review-btn` | 289 (`#quiz-best-score`) | Sau `<span id="quiz-best-score" class="hidden"></span>`, trong `#quiz-header` (trước `</div>` dòng 290) |
 | `#quiz-review-report` | 323 (`</div>` của `#quiz-result`) | Sau `</div>` đóng `#quiz-result`, trong `#quiz-body` (trước `</div>` dòng 324) |
 
-- [ ] **Step 1: Thêm `#quiz-now-btn` trong voice bar (sau line 243)**
+- [x] **Step 1: Thêm `#quiz-now-btn` trong voice bar (sau line 243)**
 
 Sau `</div>` của `<div id="voice-controls">` (line 243), thêm:
 
@@ -106,7 +106,7 @@ Sau `</div>` của `<div id="voice-controls">` (line 243), thêm:
             <button id="quiz-now-btn" class="voice-btn quiz-now-btn hidden" title="Kiểm tra kiến thức trang vừa giảng">📝 Kiểm tra ngay</button>
 ```
 
-- [ ] **Step 2: Thêm `#teach-then-quiz-toggle` trong settings modal (sau line 82)**
+- [x] **Step 2: Thêm `#teach-then-quiz-toggle` trong settings modal (sau line 82)**
 
 Sau `</div>` của `<div id="deepseek-settings">` (line 82), thêm:
 
@@ -117,7 +117,7 @@ Sau `</div>` của `<div id="deepseek-settings">` (line 82), thêm:
       </label>
 ```
 
-- [ ] **Step 3: Thêm `#quiz-review-btn` trong quiz header (sau line 289)**
+- [x] **Step 3: Thêm `#quiz-review-btn` trong quiz header (sau line 289)**
 
 Sau `<span id="quiz-best-score" class="hidden"></span>` (line 289), thêm:
 
@@ -125,7 +125,7 @@ Sau `<span id="quiz-best-score" class="hidden"></span>` (line 289), thêm:
           <button id="quiz-review-btn" class="btn-ghost hidden" style="font-size:0.75rem;padding:4px 10px;" title="Ôn tập các trang có điểm thấp">📚 Ôn tập trang yếu</button>
 ```
 
-- [ ] **Step 4: Thêm `#quiz-review-report` trong quiz body (sau line 323)**
+- [x] **Step 4: Thêm `#quiz-review-report` trong quiz body (sau line 323)**
 
 Sau `</div>` đóng `<div id="quiz-result">` (line 323), thêm:
 
@@ -136,7 +136,7 @@ Sau `</div>` đóng `<div id="quiz-result">` (line 323), thêm:
           </div>
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Start server:
 ```bash
@@ -160,7 +160,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add index.html
@@ -174,7 +174,7 @@ git commit -m "feat: add quiz-now-btn, teach-then-quiz toggle, and review UI ele
 **Files:**
 - Modify: `css/style.css` (sau line 377 `.voice-btn.retry-btn`, sau line 622 cuối block quiz)
 
-- [ ] **Step 1: Thêm style `#quiz-now-btn` (sau line 377)**
+- [x] **Step 1: Thêm style `#quiz-now-btn` (sau line 377)**
 
 Sau dòng 377 (`.voice-btn.retry-btn { ... }`), thêm:
 
@@ -183,7 +183,7 @@ Sau dòng 377 (`.voice-btn.retry-btn { ... }`), thêm:
 #quiz-now-btn:hover:not(:disabled) { background:rgba(0,242,254,0.12); border-color:var(--accent); color:var(--accent); box-shadow:0 0 12px var(--accent-glow); }
 ```
 
-- [ ] **Step 2: Thêm style review (sau line 622 — cuối file)**
+- [x] **Step 2: Thêm style review (sau line 622 — cuối file)**
 
 Sau dòng 622 (`}` đóng `#quiz-count`), thêm:
 
@@ -195,12 +195,12 @@ Sau dòng 622 (`}` đóng `#quiz-count`), thêm:
 .review-item.fail { border-left:3px solid rgba(248,113,113,0.8); }
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Mở index.html trong browser kiểm tra thủ công hoặc QA Playwright (sẽ cover trong Task 7).
 Không có lệnh `node --check` cho CSS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add css/style.css
@@ -218,7 +218,7 @@ git commit -m "feat: add styles for quiz-now-btn and review report"
 - State `'done'` xuất hiện ở 2 nơi: `ttsEngine.onEnd` (line 924-941) và `_handleChatMessage` (lines 1087-1089). Phải phân biệt: chỉ hiện nút "Kiểm tra ngay" khi done do giảng xong.
 - Giải pháp: flag `this._justTaught = true` set trong `onEnd` TRƯỚC khi gọi `_updateVoiceStatus`. Trong `_updateVoiceStatus` case `'done'`, kiểm tra `this._justTaught` để hiện nút. Xoá flag ngay sau khi hiển thị hoặc khi chuyển trạng thái khác.
 
-- [ ] **Step 1: Constructor — thêm state (lines 12-31)**
+- [x] **Step 1: Constructor — thêm state (lines 12-31)**
 
 Sau line 15 (`this.aiEngine = new AIEngine()`), thêm:
 
@@ -240,7 +240,7 @@ Sau line 19 (`this._lastTaughtWasTitle = false;`), thêm:
 
 (Lưu ý: Khai báo `_loadTeachThenQuizSetting` là method của class — định nghĩa trong Step 2.)
 
-- [ ] **Step 2: Thêm method `_loadTeachThenQuizSetting()`**
+- [x] **Step 2: Thêm method `_loadTeachThenQuizSetting()`**
 
 Thêm vào class (sau `_cancelPrefetch` ~line 39 hoặc sau constructor):
 
@@ -257,7 +257,7 @@ Thêm vào class (sau `_cancelPrefetch` ~line 39 hoặc sau constructor):
   }
 ```
 
-- [ ] **Step 3: `init()` — thêm `_setupQuizNowBtn()` (sau line 61)**
+- [x] **Step 3: `init()` — thêm `_setupQuizNowBtn()` (sau line 61)**
 
 Sau line 61 (`this._setupLanding();`), thêm:
 
@@ -265,7 +265,7 @@ Sau line 61 (`this._setupLanding();`), thêm:
     this._setupQuizNowBtn();
 ```
 
-- [ ] **Step 4: Thêm method `_setupQuizNowBtn()`**
+- [x] **Step 4: Thêm method `_setupQuizNowBtn()`**
 
 Thêm vào class (gần `_setupQuizEvents` ~line 1044 hoặc sau `_loadTeachThenQuizSetting`):
 
@@ -277,7 +277,7 @@ Thêm vào class (gần `_setupQuizEvents` ~line 1044 hoặc sau `_loadTeachThen
   }
 ```
 
-- [ ] **Step 5: Thêm method `_onQuizNowClick()`**
+- [x] **Step 5: Thêm method `_onQuizNowClick()`**
 
 ```javascript
   _onQuizNowClick() {
@@ -292,7 +292,7 @@ Thêm vào class (gần `_setupQuizEvents` ~line 1044 hoặc sau `_loadTeachThen
   }
 ```
 
-- [ ] **Step 6: `ttsEngine.onEnd` — hiện nút khi giảng xong (lines 924-941)**
+- [x] **Step 6: `ttsEngine.onEnd` — hiện nút khi giảng xong (lines 924-941)**
 
 Sau line 927 (`this._updatePlayPauseBtn(false);`), thêm trước khi gọi `_updateVoiceStatus`:
 
@@ -318,7 +318,7 @@ Và thêm NGAY SAU:
 
 (Rồi mới đến line 926 `this._updateVoiceStatus(...)` — không đổi)
 
-- [ ] **Step 7: `_updateVoiceStatus()` — hiện/ẩn `#quiz-now-btn` (lines 985-1024)**
+- [x] **Step 7: `_updateVoiceStatus()` — hiện/ẩn `#quiz-now-btn` (lines 985-1024)**
 
 Thêm logic vào đầu method (sau line 990 `textEl.textContent = text;`):
 
@@ -386,7 +386,7 @@ Cụ thể cho từng case:
         this._justTaught = false;
   ```
 
-- [ ] **Step 8: `_navigatePage()` — ẩn nút khi chuyển trang (lines 649-676)**
+- [x] **Step 8: `_navigatePage()` — ẩn nút khi chuyển trang (lines 649-676)**
 
 Sau line 656 (`this._lastTaughtWasTitle = false;`), thêm:
 
@@ -396,7 +396,7 @@ Sau line 656 (`this._lastTaughtWasTitle = false;`), thêm:
     if (quizNowBtn) quizNowBtn.classList.add('hidden');
 ```
 
-- [ ] **Step 9: `_showApiKeyModal()` — đọc toggle (lines 392-409)**
+- [x] **Step 9: `_showApiKeyModal()` — đọc toggle (lines 392-409)**
 
 Sau line 406 (`document.getElementById('deepseek-model').value = s.deepseekModel || 'deepseek-chat';`), thêm:
 
@@ -404,7 +404,7 @@ Sau line 406 (`document.getElementById('deepseek-model').value = s.deepseekModel
     document.getElementById('teach-then-quiz-toggle').checked = s.teachThenQuiz !== undefined ? s.teachThenQuiz : true;
 ```
 
-- [ ] **Step 10: `_setupSettingsBtn()` — lưu toggle (lines 453-468)**
+- [x] **Step 10: `_setupSettingsBtn()` — lưu toggle (lines 453-468)**
 
 Trong object gửi `this.aiEngine.saveSettings({...})` (lines 456-467), thêm dòng sau line 467 (`deepseekModel: ...,`):
 
@@ -418,14 +418,14 @@ Sau `this.aiEngine.clearCache();` (line 468), thêm dòng trước `this._hideAp
       this._loadTeachThenQuizSetting();
 ```
 
-- [ ] **Step 11: Verify**
+- [x] **Step 11: Verify**
 
 ```bash
 node --check js/app.js
 ```
 Expected: exit 0
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add js/app.js
@@ -445,7 +445,7 @@ git commit -m "feat: add quiz-now button after teaching with teachThenQuiz toggl
 - **`_reviewCurrentPage` thứ tự**: `renderPage` → `clearQuizForPage` → reset state → `_generateForCurrentPage`.
 - **`switchTab('chat')` khi đang review**: Huỷ review mode để tránh state rác.
 
-- [ ] **Step 1: Constructor — thêm element refs + review state (lines 6-38)**
+- [x] **Step 1: Constructor — thêm element refs + review state (lines 6-38)**
 
 Sau line 28 (`this.quizCloseBtn = document.getElementById('quiz-close-btn');`), thêm:
 
@@ -465,7 +465,7 @@ Sau line 35 (`this._genSeq = 0;`), thêm:
     this._reviewReport = {};
 ```
 
-- [ ] **Step 2: `_setupEvents()` — wire review buttons (lines 40-52)**
+- [x] **Step 2: `_setupEvents()` — wire review buttons (lines 40-52)**
 
 Sau line 46 (`this.quizCloseBtn.addEventListener...`), thêm:
 
@@ -474,7 +474,7 @@ Sau line 46 (`this.quizCloseBtn.addEventListener...`), thêm:
     this.quizReviewDoneBtn.addEventListener('click', () => this._closeReviewReport());
 ```
 
-- [ ] **Step 3: Thêm method `_getWeakPages()`**
+- [x] **Step 3: Thêm method `_getWeakPages()`**
 
 Thêm vào class (sau `_getQuizCount` ~line 125):
 
@@ -498,7 +498,7 @@ Thêm vào class (sau `_getQuizCount` ~line 125):
   }
 ```
 
-- [ ] **Step 4: Thêm method `_updateReviewBtn()`**
+- [x] **Step 4: Thêm method `_updateReviewBtn()`**
 
 ```javascript
   /** Hiện/ẩn nút "Ôn tập trang yếu" */
@@ -512,7 +512,7 @@ Thêm vào class (sau `_getQuizCount` ~line 125):
   }
 ```
 
-- [ ] **Step 5: `_syncForPage()` — gọi update (line 96-105)**
+- [x] **Step 5: `_syncForPage()` — gọi update (line 96-105)**
 
 Cuối method (sau `if/else` block lines 99-104, trước `}` đóng), thêm:
 
@@ -520,7 +520,7 @@ Cuối method (sau `if/else` block lines 99-104, trước `}` đóng), thêm:
     this._updateReviewBtn();
 ```
 
-- [ ] **Step 6: `onPdfLoaded()` — gọi update (lines 89-93)**
+- [x] **Step 6: `onPdfLoaded()` — gọi update (lines 89-93)**
 
 Sau line 92 (`this._syncForPage(...)`), thêm:
 
@@ -528,7 +528,7 @@ Sau line 92 (`this._syncForPage(...)`), thêm:
     this._updateReviewBtn();
 ```
 
-- [ ] **Step 7: `_resetToEmpty()` — gọi update + ẩn report (lines 108-119)**
+- [x] **Step 7: `_resetToEmpty()` — gọi update + ẩn report (lines 108-119)**
 
 Sau line 118 (`this.quizEmptyText.textContent = ...;`), thêm:
 
@@ -537,7 +537,7 @@ Sau line 118 (`this.quizEmptyText.textContent = ...;`), thêm:
     this._updateReviewBtn();
 ```
 
-- [ ] **Step 8: `onPageChanged()` — guard review mode (lines 75-86)**
+- [x] **Step 8: `onPageChanged()` — guard review mode (lines 75-86)**
 
 **Ở ĐẦU method** (trước line 76 `this._syncForPage(pageNum);`), thêm:
 
@@ -547,7 +547,7 @@ Sau line 118 (`this.quizEmptyText.textContent = ...;`), thêm:
 
 (Lưu ý: guard phải ở trước `_syncForPage` để tránh hiển thị sai điểm/tiêu đề khi đang review. `_reviewCurrentPage` đã tự gọi `_generateForCurrentPage` sau khi navigate.)
 
-- [ ] **Step 9: Thêm method `_startWeakPageReview()`**
+- [x] **Step 9: Thêm method `_startWeakPageReview()`**
 
 ```javascript
   /** Bắt đầu vòng lặp ôn tập các trang yếu */
@@ -564,7 +564,7 @@ Sau line 118 (`this.quizEmptyText.textContent = ...;`), thêm:
   }
 ```
 
-- [ ] **Step 10: Thêm method `_reviewCurrentPage()`**
+- [x] **Step 10: Thêm method `_reviewCurrentPage()`**
 
 ```javascript
   /** Ôn tập trang yếu hiện tại trong danh sách */
@@ -594,7 +594,7 @@ Sau line 118 (`this.quizEmptyText.textContent = ...;`), thêm:
   }
 ```
 
-- [ ] **Step 11: `_showResult()` — trigger review advance (lines 252-260)**
+- [x] **Step 11: `_showResult()` — trigger review advance (lines 252-260)**
 
 Sau line 259 (`this._syncForPage(pageNum);`), thêm:
 
@@ -602,7 +602,7 @@ Sau line 259 (`this._syncForPage(pageNum);`), thêm:
     if (this._reviewMode) this._onReviewPageDone(pageNum);
 ```
 
-- [ ] **Step 12: Thêm method `_onReviewPageDone(pageNum)`**
+- [x] **Step 12: Thêm method `_onReviewPageDone(pageNum)`**
 
 ```javascript
   /** Sau khi làm xong quiz cho 1 trang yếu */
@@ -619,7 +619,7 @@ Sau line 259 (`this._syncForPage(pageNum);`), thêm:
   }
 ```
 
-- [ ] **Step 13: Thêm method `_showReviewReport()`**
+- [x] **Step 13: Thêm method `_showReviewReport()`**
 
 ```javascript
   /** Hiển thị báo cáo kết quả ôn tập */
@@ -647,7 +647,7 @@ Sau line 259 (`this._syncForPage(pageNum);`), thêm:
   }
 ```
 
-- [ ] **Step 14: Thêm method `_closeReviewReport()`**
+- [x] **Step 14: Thêm method `_closeReviewReport()`**
 
 ```javascript
   /** Đóng báo cáo review, reset về trạng thái trống */
@@ -660,7 +660,7 @@ Sau line 259 (`this._syncForPage(pageNum);`), thêm:
   }
 ```
 
-- [ ] **Step 15: `switchTab()` — huỷ review khi chuyển tab (lines 54-62)**
+- [x] **Step 15: `switchTab()` — huỷ review khi chuyển tab (lines 54-62)**
 
 Sau line 58 (`const showQuiz = name === 'quiz';`), thêm:
 
@@ -673,14 +673,14 @@ Sau line 58 (`const showQuiz = name === 'quiz';`), thêm:
     }
 ```
 
-- [ ] **Step 16: Verify**
+- [x] **Step 16: Verify**
 
 ```bash
 node --check js/quiz.js
 ```
 Expected: exit 0
 
-- [ ] **Step 17: Commit**
+- [x] **Step 17: Commit**
 
 ```bash
 git add js/quiz.js
@@ -724,7 +724,7 @@ git commit -m "feat: add weak-page review loop with progress report"
 - Không dùng `window.app` (module-scoped — không tồn tại trên `window`).
 - Tên file PDF: `/tmp/qa-weak-review.pdf` → filename trong app là `qa-weak-review`.
 
-- [ ] **Step 1: Tạo QA test script**
+- [x] **Step 1: Tạo QA test script**
 
 Tạo file `tests/qa-weak-review.mjs`:
 
@@ -888,7 +888,7 @@ console.log('✅ QA weak review PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy QA test**
+- [x] **Step 2: Chạy QA test**
 
 Start server:
 ```bash
@@ -908,7 +908,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/qa-weak-review.mjs
@@ -922,7 +922,7 @@ git commit -m "test: add QA for weak-page review loop"
 **Files:**
 - Modify: `README.md` (dòng quiz features ~15)
 
-- [ ] **Step 1: Sửa README**
+- [x] **Step 1: Sửa README**
 
 Line 15 hiện tại:
 ```markdown
@@ -935,7 +935,7 @@ Sửa thành:
 - 🔁 **Learning loop** — Kiểm tra ngay sau khi giảng + tự động ôn tập các trang có điểm thấp (< 60%)
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add README.md
@@ -946,21 +946,21 @@ git commit -m "docs: update README with learning loop features"
 
 ## Verification tổng (final wave)
 
-- [ ] **1. `node --check` tất cả file JS sửa đổi:**
+- [x] **1. `node --check` tất cả file JS sửa đổi:**
 
 ```bash
 node --check js/ai-engine.js && node --check js/app.js && node --check js/quiz.js
 ```
 Expected: exit 0
 
-- [ ] **2. Chạy regression tests cũ:**
+- [x] **2. Chạy regression tests cũ:**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs
 ```
 Expected: `✅ title-detect: tất cả test pass` + `✅ quiz-validate: tất cả test pass`, exit 0
 
-- [ ] **3. Chạy QA quiz count (đảm bảo không regression):**
+- [x] **3. Chạy QA quiz count (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -973,7 +973,7 @@ Expected: `✅ QA quiz count PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **4. Chạy QA weak review:**
+- [x] **4. Chạy QA weak review:**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -986,14 +986,14 @@ Expected: `✅ QA weak review PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **5. Kiểm tra git status:**
+- [x] **5. Kiểm tra git status:**
 
 ```bash
 git status
 ```
 Expected: sạch (ngoài `.omo/` và `docs/superpowers/plans/` nếu plan file vẫn unstaged).
 
-- [ ] **6. Liệt kê commits đã tạo:**
+- [x] **6. Liệt kê commits đã tạo:**
 
 ```bash
 git log --oneline -9
