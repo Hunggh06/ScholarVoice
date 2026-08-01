@@ -203,7 +203,14 @@ CÁCH ĐỌC SLIDE:
 - Chữ viết tắt: đánh vần từng chữ (CPU → "xê pê u", PDF → "pê đê ép", AI → "a i").
 - TUYỆT ĐỐI KHÔNG dùng ký hiệu = + - × $ ^ _ { } — luôn thay bằng lời.
 - KHÔNG dùng markdown hay ký tự đặc biệt (**bold**, *italic*, code, ## heading, - bullet).
-- KHÔNG dùng ký tự đặc biệt nào cả. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).`;
+- KHÔNG dùng ký tự đặc biệt nào cả. Chỉ dùng chữ cái, số, dấu câu cơ bản (. , ? ! : ;).
+
+TƯƠNG TÁC HỎI ĐÁP (tùy chọn):
+- Bạn CÓ THỂ chèn câu hỏi trắc nghiệm vào giữa bài giảng để kiểm tra mức độ hiểu của sinh viên.
+- KHI NÀO HỎI: Trang có nhiều khái niệm, công thức, điểm quan trọng → 1-3 câu hỏi. Trang tiêu đề, giới thiệu, ngắn → KHÔNG hỏi (interactive_questions: []).
+- CÂU HỎI: Tiếng Việt, 4 đáp án A/B/C/D, 1 đúng + 3 nhiễu hợp lý, correct_index là index của đáp án đúng (0-3).
+- GIẢI THÍCH: explanation ngắn gọn 1-2 câu, giải thích tại sao đáp án đó đúng.
+- after_chunk: số thứ tự chunk (bắt đầu từ 0) mà SAU KHI đọc xong chunk đó sẽ hỏi.`;
     }
 
 
@@ -215,19 +222,28 @@ CÁCH ĐỌC SLIDE:
 
 QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
 {
-  "segments": [
+  "voice_chunks": [
     {
-      "explanation_text": "nội dung giảng cho vùng này, viết thành MỘT đoạn văn liên tục, tuân theo mọi luật giảng từ system prompt",
+      "text": "nội dung giảng cho đoạn 1, viết thành MỘT đoạn văn liên tục, tuân theo mọi luật giảng từ system prompt",
       "region_vert": [0, 0.35]
     },
     {
-      "explanation_text": "nội dung giảng cho vùng tiếp theo",
-      "region_vert": [0.35, 0.65]
+      "text": "nội dung giảng cho đoạn tiếp theo",
+      "region_vert": [0.35, 1.0]
+    }
+  ],
+  "interactive_questions": [
+    {
+      "after_chunk": 0,
+      "question": "Câu hỏi tiếng Việt?",
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      "correct_index": 1,
+      "explanation": "Giải thích ngắn gọn tại sao đáp án này đúng."
     }
   ]
 }
-region_vert là [trên, dưới] tính theo phần trăm chiều cao trang (giá trị 0-1).
-Chia trang thành các vùng dọc tương ứng với mỗi phần nội dung.
+voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn nhỏ (2-5 đoạn).
+interactive_questions là mảng 0-3 câu hỏi trắc nghiệm. Nếu không có câu hỏi thì trả về mảng rỗng [].
 KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     } else {
       userPrompt = pageText
@@ -241,9 +257,10 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     // Parse response: vision mode → JSON segments, text mode → plain text
     let voiceText = rawResponse;
     let segments = null;
+    let parsed = null;
 
     if (expectJson) {
-      const parsed = this._parseSegmentsJSON(rawResponse);
+      parsed = this._parseSegmentsJSON(rawResponse);
       if (parsed && parsed.segments && parsed.segments.length > 0) {
         segments = parsed.segments.map(s => ({
           text: s.explanation_text || s.text || s.content || '',
@@ -261,10 +278,13 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
       }
     }
 
+    const voiceChunks = this._extractVoiceChunks(parsed || {}, voiceText);
+    const interactiveQuestions = this._extractInteractiveQuestions(parsed || {}, voiceChunks);
+
     // Lưu tóm tắt vào bộ nhớ ngữ cảnh
     this._updateContext(pageNum, voiceText);
 
-    const result = { voice_text: voiceText, segments, isTitleSlide };
+    const result = { voice_text: voiceText, segments, isTitleSlide, voice_chunks: voiceChunks, interactive_questions: interactiveQuestions };
     const cacheKey = `page_${pageNum}_${this.provider}_${this.teachingStyle}`;
     this.pageCache.set(cacheKey, result);
     return result;
