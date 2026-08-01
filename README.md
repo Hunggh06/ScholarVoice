@@ -16,6 +16,7 @@ ScholarVoice is a web tool that lets you upload PDF files and have AI lecture on
 - 📝 **Quiz trắc nghiệm** — AI tự tạo câu hỏi trắc nghiệm bám sát nội dung trang (3/5/10 câu tuỳ chọn), chấm điểm ngay, đọc bằng giọng, lưu điểm theo trang, ôn tập trang yếu
 - 🔁 **Learning loop** — Kiểm tra ngay sau khi giảng + tự động ôn tập các trang có điểm thấp (< 60%)
 - 🃏 **Flashcards** — AI trích thuật ngữ → định nghĩa từ nội dung trang, lật thẻ học, nghe đọc bằng giọng, tự đánh giá biết/ôn lại, xoay vòng ôn tập
+- 📝 **Đề ôn tổng hợp** — gom câu hỏi mới từ tất cả trang yếu (< 60%) thành một đề ôn, chấm tổng + báo cáo theo trang, không ghi đè điểm từng trang
 - ⏱️ **Giảng thông minh** — slide chỉ có tiêu đề được giới thiệu ngắn gọn và tự động chuyển trang khi bật auto-read
 
 ## 📺 Demo

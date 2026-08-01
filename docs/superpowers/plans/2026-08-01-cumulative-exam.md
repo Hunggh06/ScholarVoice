@@ -16,16 +16,16 @@
 
 ## Trước khi bắt đầu
 
-- [ ] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
+- [x] Kiểm tra git status sạch (ngoài `.omo/` và `docs/superpowers/plans/`):
   ```bash
   git status
   ```
-- [ ] Baseline — tất cả file JS hiện tại parse OK:
+- [x] Baseline — tất cả file JS hiện tại parse OK:
   ```bash
   node --check js/ai-engine.js && node --check js/quiz.js && node --check js/app.js && node --check js/flashcards.js && node --check js/chat.js
   ```
   Expected: exit 0
-- [ ] Chạy regression tests hiện có:
+- [x] Chạy regression tests hiện có:
   ```bash
   node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs
   ```
@@ -44,7 +44,7 @@
 - Nút `#exam-start-btn` disabled mặc định (chưa có PDF).
 - Tất cả class CSS dùng lại (`quiz-start-controls`, `quiz-count-label`, `btn-primary`) — không tạo class HTML mới trừ các class sẽ được style trong Task 2.
 
-- [ ] **Step 1: Chèn `#exam-section` block (sau line 298, trước line 299)**
+- [x] **Step 1: Chèn `#exam-section` block (sau line 298, trước line 299)**
 
 Sau line 298 (`<div id="quiz-body">`), thêm:
 
@@ -78,7 +78,7 @@ Sau line 298 (`<div id="quiz-body">`), thêm:
 </div>
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Start server:
 ```bash
@@ -103,7 +103,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add index.html
@@ -117,7 +117,7 @@ git commit -m "feat: add exam section HTML (dropdown + start button) to quiz-bod
 **Files:**
 - Modify: `css/style.css` (sau line 679 — cuối file)
 
-- [ ] **Step 1: Thêm style exam vào cuối file (sau line 679)**
+- [x] **Step 1: Thêm style exam vào cuối file (sau line 679)**
 
 Sau line 679 (`#flash-empty .btn-primary { margin-top:8px; }`), thêm:
 
@@ -143,11 +143,11 @@ Sau line 679 (`#flash-empty .btn-primary { margin-top:8px; }`), thêm:
 .exam-report-table td { padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Không có lệnh `node --check` cho CSS. Kiểm tra thủ công hoặc QA Playwright (Task 5).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add css/style.css
@@ -172,7 +172,7 @@ git commit -m "feat: add exam styles (section, controls, source label, report ta
 
 ---
 
-- [ ] **Step 1: Constructor — thêm element refs + exam state (sau line 32, trước line 34)**
+- [x] **Step 1: Constructor — thêm element refs + exam state (sau line 32, trước line 34)**
 
 Sau line 32 (`this.quizReviewDoneBtn = document.getElementById('quiz-review-done-btn');`), thêm element refs:
 
@@ -192,7 +192,7 @@ Sau line 44 (`this._reviewReport = {};`), thêm exam state:
 
 ---
 
-- [ ] **Step 2: Thêm export function `getWeakPagesFromScores` (cuối file, sau line 447)**
+- [x] **Step 2: Thêm export function `getWeakPagesFromScores` (cuối file, sau line 447)**
 
 Sau line 447 (`}` đóng class), thêm:
 
@@ -216,7 +216,7 @@ export function getWeakPagesFromScores(scores, threshold = 0.6) {
 }
 ```
 
-- [ ] **Step 3: Refactor `_getWeakPages()` — dùng pure helper (sửa lines 154-168)**
+- [x] **Step 3: Refactor `_getWeakPages()` — dùng pure helper (sửa lines 154-168)**
 
 Sửa `_getWeakPages()` (lines 154-168) thành:
 
@@ -235,7 +235,7 @@ Sửa `_getWeakPages()` (lines 154-168) thành:
 
 ---
 
-- [ ] **Step 4: Thêm `_getExamCount()` (sau `_getQuizCount`, sau line 151)**
+- [x] **Step 4: Thêm `_getExamCount()` (sau `_getQuizCount`, sau line 151)**
 
 Sau line 151 (`return [3, 5, 10].includes(v) ? v : 3;` + `}` đóng `_getQuizCount`), thêm:
 
@@ -250,7 +250,7 @@ Sau line 151 (`return [3, 5, 10].includes(v) ? v : 3;` + `}` đóng `_getQuizCou
 
 ---
 
-- [ ] **Step 5: Thêm `_updateExamSection()` (sau `_updateReviewBtn`, sau line 177)**
+- [x] **Step 5: Thêm `_updateExamSection()` (sau `_updateReviewBtn`, sau line 177)**
 
 Sau line 177 (`this.quizReviewBtn.classList.toggle('hidden', weak.length === 0);` + `}` đóng `_updateReviewBtn`), thêm:
 
@@ -275,7 +275,7 @@ Sau line 177 (`this.quizReviewBtn.classList.toggle('hidden', weak.length === 0);
 
 ---
 
-- [ ] **Step 6: Thêm `startExam()` (sau `_updateExamSection`, sau bước Step 5)**
+- [x] **Step 6: Thêm `startExam()` (sau `_updateExamSection`, sau bước Step 5)**
 
 Thêm sau `_updateExamSection`:
 
@@ -312,7 +312,7 @@ Thêm sau `_updateExamSection`:
 
 ---
 
-- [ ] **Step 7: Thêm `_generateExam()` (sau `startExam`, sau bước Step 6)**
+- [x] **Step 7: Thêm `_generateExam()` (sau `startExam`, sau bước Step 6)**
 
 Thêm sau `startExam`:
 
@@ -392,7 +392,7 @@ Thêm sau `startExam`:
 
 ---
 
-- [ ] **Step 8: Sửa `_renderQuestion()` — exam header + source label (lines 323-344)**
+- [x] **Step 8: Sửa `_renderQuestion()` — exam header + source label (lines 323-344)**
 
 Sửa `_renderQuestion()` — thay thế lines 323-344 hiện tại bằng code có exam gate:
 
@@ -436,7 +436,7 @@ Sửa `_renderQuestion()` — thay thế lines 323-344 hiện tại bằng code 
 
 ---
 
-- [ ] **Step 9: Sửa `_syncForPage()` — exam gate (line 120-129)**
+- [x] **Step 9: Sửa `_syncForPage()` — exam gate (line 120-129)**
 
 Sửa `_syncForPage(pageNum)` (lines 120-129) — thêm guard ở đầu method:
 
@@ -460,7 +460,7 @@ Thay thế lines 120-129 bằng:
 
 ---
 
-- [ ] **Step 10: Sửa `_showResult()` — exam gate (lines 385-393)**
+- [x] **Step 10: Sửa `_showResult()` — exam gate (lines 385-393)**
 
 Thay thế lines 385-393 bằng:
 
@@ -484,7 +484,7 @@ Thay thế lines 385-393 bằng:
 
 ---
 
-- [ ] **Step 11: Thêm `_showExamResult()` (sau `_showResult`, sau vị trí mới của Step 10)**
+- [x] **Step 11: Thêm `_showExamResult()` (sau `_showResult`, sau vị trí mới của Step 10)**
 
 Thêm sau `_showResult`:
 
@@ -514,7 +514,7 @@ Thêm sau `_showResult`:
 
 **CHÚ Ý — lỗi thiết kế trong Step 11:** `_showExamResult()` hiện tại chỉ hiển thị tổng — chưa có per-page breakdown vì `_answer()` không ghi lại per-question result. Cần sửa `_answer()` để ghi `q._userCorrect` khi exam mode. Sửa Step 11 + thêm Step 11b.
 
-- [ ] **Step 11b: Sửa `_answer()` — ghi `_userCorrect` khi exam mode (trong `_answer`, lines 348-372)**
+- [x] **Step 11b: Sửa `_answer()` — ghi `_userCorrect` khi exam mode (trong `_answer`, lines 348-372)**
 
 Sửa `_answer(idx)` — trong block sau line 362 (`const isCorrect = idx === correctIdx;`), thêm ghi `_userCorrect`:
 
@@ -552,7 +552,7 @@ Thay thế lines 348-372 bằng:
   }
 ```
 
-- [ ] **Step 11c: Viết lại `_showExamResult()` hoàn chỉnh (thay thế code Step 11)**
+- [x] **Step 11c: Viết lại `_showExamResult()` hoàn chỉnh (thay thế code Step 11)**
 
 Thay thế `_showExamResult()` từ Step 11 bằng bản đầy đủ có per-page report:
 
@@ -587,7 +587,7 @@ Thay thế `_showExamResult()` từ Step 11 bằng bản đầy đủ có per-pa
 
 ---
 
-- [ ] **Step 12: Sửa `onPageChanged()` — `_examMode` guard + reset (lines 97-108)**
+- [x] **Step 12: Sửa `onPageChanged()` — `_examMode` guard + reset (lines 97-108)**
 
 Thay thế lines 97-108 bằng:
 
@@ -638,7 +638,7 @@ Thực tế, `_examMode` nên được reset trong `_resetToEmpty()` (Step 15), 
 
 ---
 
-- [ ] **Step 13: Sửa `_resetToEmpty()` — reset exam state + re-show exam section (lines 133-145)**
+- [x] **Step 13: Sửa `_resetToEmpty()` — reset exam state + re-show exam section (lines 133-145)**
 
 Thay thế lines 133-145 bằng:
 
@@ -665,7 +665,7 @@ Thay thế lines 133-145 bằng:
 
 ---
 
-- [ ] **Step 14: Sửa `_onTabOpened()` — exam gate (lines 87-93)**
+- [x] **Step 14: Sửa `_onTabOpened()` — exam gate (lines 87-93)**
 
 Thay thế lines 87-93 bằng:
 
@@ -684,7 +684,7 @@ Thay thế lines 87-93 bằng:
 
 ---
 
-- [ ] **Step 15: Sửa `onPdfLoaded()` — gọi `_updateExamSection()` (lines 112-116)**
+- [x] **Step 15: Sửa `onPdfLoaded()` — gọi `_updateExamSection()` (lines 112-116)**
 
 Thay thế lines 112-116 bằng:
 
@@ -701,7 +701,7 @@ Thay thế lines 112-116 bằng:
 
 ---
 
-- [ ] **Step 16: Sửa `_setupEvents()` — wire `#exam-start-btn` + `this` bind (lines 49-63)**
+- [x] **Step 16: Sửa `_setupEvents()` — wire `#exam-start-btn` + `this` bind (lines 49-63)**
 
 Thay thế lines 49-63 bằng (thêm 1 dòng listener):
 
@@ -726,7 +726,7 @@ Thay thế lines 49-63 bằng (thêm 1 dòng listener):
 
 ---
 
-- [ ] **Step 17: Verify syntax**
+- [x] **Step 17: Verify syntax**
 
 ```bash
 node --check js/quiz.js
@@ -735,7 +735,7 @@ Expected: exit 0
 
 ---
 
-- [ ] **Step 18: Commit**
+- [x] **Step 18: Commit**
 
 ```bash
 git add js/quiz.js
@@ -749,7 +749,7 @@ git commit -m "feat: add exam mode to QuizManager (cumulative weak-page exam)"
 **Files:**
 - Create: `tests/exam-weak-pages.test.mjs`
 
-- [ ] **Step 1: Tạo unit test**
+- [x] **Step 1: Tạo unit test**
 
 ```javascript
 import assert from 'node:assert';
@@ -836,14 +836,14 @@ console.log('TEST 9 PASS: null/undefined entries');
 console.log('✅ exam-weak-pages: tất cả test pass (9/9)');
 ```
 
-- [ ] **Step 2: Chạy test**
+- [x] **Step 2: Chạy test**
 
 ```bash
 node tests/exam-weak-pages.test.mjs
 ```
 Expected: `✅ exam-weak-pages: tất cả test pass (9/9)`, exit 0
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/exam-weak-pages.test.mjs
@@ -870,7 +870,7 @@ git commit -m "test: add unit tests for getWeakPagesFromScores"
 - Tên file PDF: `/tmp/qa-exam.pdf` → filename trong app là `qa-exam.pdf`.
 - **Seed:** page 1 `{best:4,total:5}` (80% → NOT weak), page 2 `{best:1,total:3}` (33% → WEAK), page 3 `{best:1,total:5}` (20% → WEAK).
 
-- [ ] **Step 1: Tạo QA test script**
+- [x] **Step 1: Tạo QA test script**
 
 ```javascript
 // QA: cumulative exam flow — network interception + real 3-page PDF via fpdf
@@ -1116,7 +1116,7 @@ console.log('✅ QA exam PASS');
 await browser.close();
 ```
 
-- [ ] **Step 2: Chạy QA test**
+- [x] **Step 2: Chạy QA test**
 
 Start server:
 ```bash
@@ -1136,7 +1136,7 @@ Kill server:
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/qa-exam.mjs
@@ -1150,7 +1150,7 @@ git commit -m "test: add QA for cumulative exam flow"
 **Files:**
 - Modify: `README.md` (dòng sau Flashcards bullet)
 
-- [ ] **Step 1: Sửa README — thêm bullet Đề ôn tổng hợp**
+- [x] **Step 1: Sửa README — thêm bullet Đề ôn tổng hợp**
 
 Sau line 18 (`- 🃏 **Flashcards** — AI trích thuật ngữ → định nghĩa từ nội dung trang, lật thẻ học, nghe đọc bằng giọng, tự đánh giá biết/ôn lại, xoay vòng ôn tập`), thêm:
 
@@ -1158,11 +1158,11 @@ Sau line 18 (`- 🃏 **Flashcards** — AI trích thuật ngữ → định ngh�
 - 📝 **Đề ôn tổng hợp** — gom câu hỏi mới từ tất cả trang yếu (< 60%) thành một đề ôn, chấm tổng + báo cáo theo trang, không ghi đè điểm từng trang
 ```
 
-- [ ] **Step 2: Mark all plan checkboxes as [x]**
+- [x] **Step 2: Mark all plan checkboxes as [x]**
 
 Sau khi tất cả các task đã hoàn thành và verify pass, đánh dấu tất cả checkbox trong plan này thành `[x]`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md
@@ -1173,28 +1173,28 @@ git commit -m "docs: add cumulative exam feature to README and finalize plan"
 
 ## Verification tổng (final wave)
 
-- [ ] **1. `node --check` tất cả file JS sửa đổi + mới:**
+- [x] **1. `node --check` tất cả file JS sửa đổi + mới:**
 
 ```bash
 node --check js/ai-engine.js && node --check js/app.js && node --check js/quiz.js && node --check js/flashcards.js && node --check js/chat.js
 ```
 Expected: exit 0
 
-- [ ] **2. Chạy regression tests cũ:**
+- [x] **2. Chạy regression tests cũ:**
 
 ```bash
 node tests/title-detect.test.mjs && node tests/quiz-validate.test.mjs && node tests/flashcards-validate.test.mjs
 ```
 Expected: `✅ title-detect: tất cả test pass` + `✅ quiz-validate: tất cả test pass` + `✅ flashcards-validate: tất cả test pass`, exit 0
 
-- [ ] **3. Chạy unit test mới:**
+- [x] **3. Chạy unit test mới:**
 
 ```bash
 node tests/exam-weak-pages.test.mjs
 ```
 Expected: `✅ exam-weak-pages: tất cả test pass (9/9)`, exit 0
 
-- [ ] **4. Chạy QA quiz count (đảm bảo không regression):**
+- [x] **4. Chạy QA quiz count (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1207,7 +1207,7 @@ Expected: `✅ QA quiz count PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **5. Chạy QA weak review (đảm bảo không regression):**
+- [x] **5. Chạy QA weak review (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1220,7 +1220,7 @@ Expected: `✅ QA weak review PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **6. Chạy QA flashcards (đảm bảo không regression):**
+- [x] **6. Chạy QA flashcards (đảm bảo không regression):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1233,7 +1233,7 @@ Expected: `✅ QA flashcards PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **7. Chạy QA exam (tính năng mới):**
+- [x] **7. Chạy QA exam (tính năng mới):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1246,7 +1246,7 @@ Expected: `✅ QA exam PASS`, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **8. Smoke test nhanh (đảm bảo app load không lỗi):**
+- [x] **8. Smoke test nhanh (đảm bảo app load không lỗi):**
 
 ```bash
 pgrep -f server.py | grep -v $$ | xargs -r kill
@@ -1259,14 +1259,14 @@ Expected: HTML hợp lệ, exit 0
 pgrep -f server.py | grep -v $$ | xargs -r kill
 ```
 
-- [ ] **9. Kiểm tra git status:**
+- [x] **9. Kiểm tra git status:**
 
 ```bash
 git status
 ```
 Expected: sạch (ngoài `.omo/` và `docs/superpowers/plans/` nếu plan file vẫn unstaged).
 
-- [ ] **10. Liệt kê commits đã tạo:**
+- [x] **10. Liệt kê commits đã tạo:**
 
 ```bash
 git log --oneline -10
