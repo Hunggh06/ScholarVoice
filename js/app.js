@@ -1298,8 +1298,13 @@ class App {
 
   async _handleChatMessage(question) {
     if (this._awaitingAnswer === true) {
-      this._handleInteractiveAnswer(question);
-      return;
+      if (this._looksLikeAnswer(question)) {
+        this._handleInteractiveAnswer(question);
+        return;
+      }
+      this._qIdx++;
+      this._awaitingAnswer = false;
+      this._resumeTeachingAfterQuestion();
     }
 
     if (!this.pdfViewer.isLoaded) {
@@ -1357,6 +1362,14 @@ class App {
     }
   }
 
+  _looksLikeAnswer(text) {
+    const t = text.trim().toLowerCase();
+    if (/^[a-d][.)]?\s*$/.test(t)) return true;
+    if (/^(đáp án|câu trả lời|em chọn|tôi chọn|chọn)\s*[a-d]\b/.test(t)) return true;
+    if (/^[a-d][.):]\s/.test(t) && !t.includes('?') && t.length <= 4) return true;
+    return false;
+  }
+
   _handleInteractiveAnswer(text) {
     if (!this._questions || this._qIdx >= this._questions.length) {
       this._awaitingAnswer = false;
@@ -1394,6 +1407,10 @@ class App {
 
     this._qIdx++;
     this._awaitingAnswer = false;
+    this._resumeTeachingAfterQuestion();
+  }
+
+  _resumeTeachingAfterQuestion() {
     const nextChunkIdx = this._currentChunkIdx + 1;
     if (this._chunks && nextChunkIdx < this._chunks.length) {
       const remainingChunks = this._chunks.slice(nextChunkIdx);
