@@ -20,17 +20,6 @@ export class PDFViewer {
     this.zoom = 1;
     this._fitScale = 1;
 
-    // Overlay canvas cho highlight vùng đang giảng (gray mask)
-    this.overlayCanvas = document.createElement('canvas');
-    this.overlayCanvas.id = 'pdf-overlay';
-    this.overlayCanvas.style.position = 'absolute';
-    this.overlayCanvas.style.top = '0';
-    this.overlayCanvas.style.left = '0';
-    this.overlayCanvas.style.pointerEvents = 'none';
-    this.canvasContainer.appendChild(this.overlayCanvas);
-    this.overlayCtx = this.overlayCanvas.getContext('2d');
-    this._highlightRegion = null;
-
     this._resizeObserver = new ResizeObserver(() => {
       if (this.pdfDoc && !this.rendering) {
         this.renderPage(this.currentPage);
@@ -91,7 +80,6 @@ export class PDFViewer {
 
   _applyPan() {
     this.canvas.style.transform = `translate(${this._panX}px, ${this._panY}px)`;
-    this.overlayCanvas.style.transform = `translate(${this._panX}px, ${this._panY}px)`;
   }
 
   _resetPan() {
@@ -169,12 +157,7 @@ export class PDFViewer {
       console.error('Lỗi render trang PDF:', err);
     }
 
-    this._syncOverlaySize();
-    this._highlightRegion = null; // clear highlight on page change
-
     this.rendering = false;
-
-    this._drawOverlay();
 
     if (this.pendingPage !== null) {
       const pending = this.pendingPage;
@@ -183,37 +166,9 @@ export class PDFViewer {
     }
   }
 
-  _syncOverlaySize() {
-    this.overlayCanvas.width = this.canvas.width;
-    this.overlayCanvas.height = this.canvas.height;
-    this.overlayCanvas.style.width = this.canvas.style.width;
-    this.overlayCanvas.style.height = this.canvas.style.height;
-  }
+  setHighlightRegion() {}
 
-  setHighlightRegion(regionVert) {
-    this._highlightRegion = regionVert;
-    this._drawOverlay();
-  }
-
-  clearHighlight() {
-    this._highlightRegion = null;
-    this._drawOverlay();
-  }
-
-  _drawOverlay() {
-    const ctx = this.overlayCtx;
-    ctx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-    if (!this._highlightRegion) return;
-
-    const [topPct, bottomPct] = this._highlightRegion;
-    const w = this.overlayCanvas.width;
-    const h = this.overlayCanvas.height;
-    const topY = Math.round(topPct * h);
-    const bottomY = Math.round(bottomPct * h);
-
-    ctx.fillStyle = 'rgba(200, 200, 200, 0.25)';
-    ctx.fillRect(0, topY, w, bottomY - topY);
-  }
+  clearHighlight() {}
 
   /**
    * Lấy ảnh của BẤT KỲ trang nào (dùng cho pre-fetch)

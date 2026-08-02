@@ -274,7 +274,6 @@ h1,h2,h3 { font-weight:500; letter-spacing:-0.02em; }
   border-radius:var(--radius); background:rgba(0,0,0,0.3); padding:4px; position:relative;
 }
 #pdf-canvas { display:block; border-radius:var(--radius-sm); box-shadow:var(--shadow-lg); transition:opacity 0.3s ease; }
-#pdf-overlay { border-radius:var(--radius-sm); }
 
 /* Consolidated PDF toolbar — all controls in one row */
 #pdf-toolbar {
