@@ -29,6 +29,8 @@ export class TTSEngine {
 
     this._sequenceActive = false;
     this._currentChunkIndex = 0;
+    this._pauseRequested = false;
+    this._resumePos = 0;
   }
 
   getAllVoices() {
@@ -121,7 +123,9 @@ export class TTSEngine {
       this._startProgress();
     };
     this._utterance.onend = () => {
-      this._cleanup();
+      const wasPaused = this._isPaused;
+      this._cleanup(wasPaused);
+      if (wasPaused) return;
       const finalPct = this._seekOffsetPct > 0
         ? this._seekOffsetPct + (1 - this._seekOffsetPct)
         : 1;
@@ -129,7 +133,7 @@ export class TTSEngine {
       if (this.onEnd) this.onEnd();
     };
     this._utterance.onerror = (e) => {
-      if (e.error === 'canceled' || e.error === 'interrupted') { this._cleanup(); return; }
+      if (e.error === 'canceled' || e.error === 'interrupted') { this._cleanup(this._isPaused); return; }
       this._cleanup();
       if (this.onError) this.onError(new Error(e.error));
     };
@@ -137,28 +141,85 @@ export class TTSEngine {
     this._synth.speak(this._utterance);
   }
 
-  _speakChunk(text) {
+  _speakChunk(text, chunkIndex, totalChunks, onChunkProgress) {
     return new Promise((resolve, reject) => {
       if (!text || !text.trim()) return resolve();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = this._rate;
-      const voices = this._synth.getVoices();
-      if (this._voiceURI) {
-        const v = voices.find(v => v.voiceURI === this._voiceURI);
-        if (v) utterance.voice = v;
-      } else if (this._voiceId) {
-        const v = voices.find(v => (v.lang + ' - ' + v.name) === this._voiceId);
-        if (v) utterance.voice = v;
-      }
-      utterance.onstart = () => { this._isSpeaking = true; this._isPaused = false; };
-      utterance.onend = () => { this._isSpeaking = false; this._isPaused = false; resolve(); };
-      utterance.onerror = (e) => {
-        this._isSpeaking = false;
-        this._isPaused = false;
-        if (e.error === 'canceled' || e.error === 'interrupted') resolve();
-        else reject(new Error(e.error));
+
+      let replayFrom = 0;
+      let lastChunkChar = 0;
+
+      const playOnce = (from) => new Promise((done) => {
+        const speechText = from > 0 ? text.slice(from) : text;
+        const utterance = new SpeechSynthesisUtterance(speechText);
+        utterance.rate = this._rate;
+        const voices = this._synth.getVoices();
+        if (this._voiceURI) {
+          const v = voices.find(v => v.voiceURI === this._voiceURI);
+          if (v) utterance.voice = v;
+        } else if (this._voiceId) {
+          const v = voices.find(v => (v.lang + ' - ' + v.name) === this._voiceId);
+          if (v) utterance.voice = v;
+        }
+
+        const chunkStart = performance.now();
+        let lastChunkBoundaryAt = performance.now();
+        const baseChar = from;
+        const emitProgress = () => {
+          if (!onChunkProgress) return;
+          let localPct;
+          if (lastChunkChar > 0 && baseChar > 0) {
+            const est = lastChunkChar + ((performance.now() - lastChunkBoundaryAt) / 1000) * 10 * this._rate;
+            localPct = est / Math.max(1, text.length);
+          } else {
+            const origLen = Math.max(1, text.length);
+            const elapsed = (performance.now() - chunkStart) / 1000;
+            const estDur = Math.max(1, (text.length - baseChar) / (12 * this._rate));
+            localPct = (baseChar + (elapsed / estDur) * Math.max(0, text.length - baseChar)) / origLen;
+          }
+          onChunkProgress(Math.min(0.99, Math.max(0, localPct)));
+        };
+        const timer = setInterval(emitProgress, 100);
+
+        utterance.onstart = () => { this._isSpeaking = true; this._isPaused = false; };
+        utterance.onboundary = (e) => {
+          lastChunkChar = baseChar + e.charIndex;
+          lastChunkBoundaryAt = performance.now();
+          emitProgress();
+        };
+        utterance.onend = () => {
+          clearInterval(timer);
+          this._isSpeaking = false;
+          this._isPaused = false;
+          if (onChunkProgress && chunkIndex != null && totalChunks > 0) {
+            onChunkProgress((chunkIndex + 1) / totalChunks);
+          }
+          done('end');
+        };
+        utterance.onerror = (e) => {
+          clearInterval(timer);
+          this._isSpeaking = false;
+          if (e.error === 'canceled' || e.error === 'interrupted') {
+            done(this._isPaused ? 'paused' : 'canceled');
+          } else {
+            done('error:' + e.error);
+          }
+        };
+        this._synth.speak(utterance);
+      });
+
+      const loop = async () => {
+        while (true) {
+          const result = await playOnce(replayFrom);
+          if (result === 'end' || result.startsWith('error')) { resolve(result); return; }
+          if (result === 'canceled') { resolve('canceled'); return; }
+          if (!this._isPaused) { resolve('resumed'); return; }
+          await new Promise(r => { this._resumeChunkResolve = r; });
+          this._isPaused = false;
+          if (!this._sequenceActive) { resolve('stopped'); return; }
+          replayFrom = Math.min(lastChunkChar, text.length);
+        }
       };
-      this._synth.speak(utterance);
+      loop();
     });
   }
 
@@ -169,6 +230,8 @@ export class TTSEngine {
     }
 
     this._sequenceActive = true;
+    this._resumeChunkResolve = null;
+    this._isPaused = false;
     this._currentChunkIndex = 0;
 
     for (let i = 0; i < chunks.length; i++) {
@@ -177,7 +240,7 @@ export class TTSEngine {
       const chunk = chunks[i];
       if (callbacks.onChunkStart) callbacks.onChunkStart(i, chunk);
       try {
-        await this._speakChunk(chunk.text);
+        await this._speakChunk(chunk.text, i, chunks.length, callbacks.onChunkProgress);
       } catch (err) {
         this._sequenceActive = false;
         if (callbacks.onError) callbacks.onError(err);
@@ -191,6 +254,10 @@ export class TTSEngine {
       }
       if (i < chunks.length - 1) {
         await sleep(150);
+      }
+      if (this._isPaused) {
+        this._sequenceActive = false;
+        return false;
       }
     }
 
@@ -238,11 +305,11 @@ export class TTSEngine {
     }, 100);
   }
 
-  _cleanup() {
+  _cleanup(keepPaused = false) {
     clearInterval(this._progressTimer);
     this._progressTimer = null;
     this._isSpeaking = false;
-    this._isPaused = false;
+    if (!keepPaused) this._isPaused = false;
     this._totalPaused = 0;
     this._utterance = null;
     this._lastCharIndex = 0;
@@ -250,27 +317,49 @@ export class TTSEngine {
     this._lastCalculatedLocalPct = 0;
   }
 
-  pause() {
-    if (this._isSpeaking && !this._isPaused) {
-      this._pausedAt = performance.now();
-      this._synth.pause();
-      this._isPaused = true;
-      if (this.onPause) this.onPause();
-    }
+pause() {
+    if (this._isPaused) return;
+    if (!this._isSpeaking && !this._sequenceActive) return;
+    this._pausedAt = performance.now();
+    this._isPaused = true;
+    this._resumePos = this._progressPct;
+    this._synth.cancel();
+    if (this.onPause) this.onPause();
   }
 
   resume() {
-    if (this._isPaused) {
-      this._totalPaused += performance.now() - this._pausedAt;
-      this._synth.resume();
-      this._isPaused = false;
+    if (!this._isPaused) return;
+    this._totalPaused += performance.now() - this._pausedAt;
+    this._isPaused = false;
+    if (this._resumeChunkResolve) {
+      const r = this._resumeChunkResolve;
+      this._resumeChunkResolve = null;
+      r();
       if (this.onResume) this.onResume();
+      return;
     }
+    const pos = this._resumePos || 0;
+    this._resumePos = 0;
+    if (pos > 0 && this._fullText && this._fullText.trim()) {
+      const startIdx = Math.floor(pos * this._fullText.length);
+      const remaining = this._fullText.slice(startIdx);
+      if (remaining.trim()) {
+        this.speak(remaining, { keepFullText: true, seekOffsetPct: pos });
+        if (this.onResume) this.onResume();
+        return;
+      }
+    }
+    if (this.onResume) this.onResume();
   }
 
   stop() {
     this._sequenceActive = false;
     this._currentChunkIndex = 0;
+    if (this._resumeChunkResolve) {
+      const r = this._resumeChunkResolve;
+      this._resumeChunkResolve = null;
+      r();
+    }
     this._cleanup();
     this._synth.cancel();
     this._progressPct = 0;
