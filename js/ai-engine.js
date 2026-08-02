@@ -536,7 +536,8 @@ Trả lời bằng JSON với 2 trường:
     const qs = json.interactive_questions;
     if (!Array.isArray(qs) || qs.length === 0) return [];
 
-    const maxAfterChunk = Array.isArray(voiceChunks) ? voiceChunks.length - 2 : -1;
+    // Cho phép câu hỏi sau chunk cuối cùng (length - 1) — DeepSeek thường đặt câu hỏi cuối bài
+    const maxAfterChunk = Array.isArray(voiceChunks) ? voiceChunks.length - 1 : -1;
     const result = [];
 
     for (const q of qs) {

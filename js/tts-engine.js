@@ -181,12 +181,12 @@ export class TTSEngine {
         return;
       }
       if (!this._sequenceActive) return;
+      const shouldContinue = callbacks.onChunkEnd ? callbacks.onChunkEnd(i, chunk) : true;
+      if (shouldContinue === false) {
+        this._sequenceActive = false;
+        return false;
+      }
       if (i < chunks.length - 1) {
-        const shouldContinue = callbacks.onChunkEnd ? callbacks.onChunkEnd(i, chunk) : true;
-        if (shouldContinue === false) {
-          this._sequenceActive = false;
-          return false;
-        }
         await sleep(150);
       }
     }

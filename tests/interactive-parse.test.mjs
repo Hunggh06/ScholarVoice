@@ -87,7 +87,7 @@ const validIQ = {
     { after_chunk: 1, question: 'Câu hỏi 2?', options: ['D1', 'D2', 'D3', 'D4'], correct_index: 0, explanation: 'exp' }
   ]
 };
-// Note: voiceChunks has 3 chunks (indices 0,1,2), after_chunk can be 0 or 1 (max = length-2 = 1)
+// Note: voiceChunks has 3 chunks (indices 0,1,2), after_chunk up to 2 (max = length-1 = 2)
 let questions = engine._extractInteractiveQuestions(validIQ, voiceChunks);
 assert.strictEqual(questions.length, 2, 'Q1: 2 questions');
 assert.strictEqual(questions[0].after_chunk, 0);
@@ -112,18 +112,20 @@ questions = engine._extractInteractiveQuestions({ interactive_questions: 'wrong'
 assert.deepStrictEqual(questions, [], 'Q4: non-array → []');
 console.log('TEST Q4 PASS: non-array → []');
 
-// TEST Q5: after_chunk out of range (>= voiceChunks.length - 1) → filtered
+// TEST Q5: after_chunk out of range (> length-1) → filtered; last chunk index (length-1) is valid now
 let jsonBadAC = {
   interactive_questions: [
     { after_chunk: 0, question: 'Q1', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' },
-    { after_chunk: 2, question: 'Q2', options: ['X', 'Y', 'Z', 'W'], correct_index: 0, explanation: 'e' }, // out of range: max = 3-2=1
-    { after_chunk: -1, question: 'Q3', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' } // negative
+    { after_chunk: 2, question: 'Q2', options: ['X', 'Y', 'Z', 'W'], correct_index: 0, explanation: 'e' }, // = length-1 → valid
+    { after_chunk: 3, question: 'Q3', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' }, // out of range: max = 3-1=2
+    { after_chunk: -1, question: 'Q4', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' } // negative
   ]
 };
 questions = engine._extractInteractiveQuestions(jsonBadAC, voiceChunks);
-assert.strictEqual(questions.length, 1, 'Q5: only 1 valid question (chunk index 0)');
+assert.strictEqual(questions.length, 2, 'Q5: 2 valid questions (after_chunk 0 and 2)');
 assert.strictEqual(questions[0].after_chunk, 0);
-console.log('TEST Q5 PASS: out-of-range after_chunk filtered');
+assert.strictEqual(questions[1].after_chunk, 2);
+console.log('TEST Q5 PASS: after_chunk = length-1 valid, out-of-range/negative filtered');
 
 // TEST Q6: correct_index out of 0-3 → filtered
 let jsonBadCI = {
@@ -174,12 +176,13 @@ questions = engine._extractInteractiveQuestions(validIQ, []);
 assert.deepStrictEqual(questions, [], 'Q10b: empty voiceChunks → all filtered');
 console.log('TEST Q10 PASS: null/empty voiceChunks → all filtered');
 
-// TEST Q11: single chunk voiceChunks → only after_chunk 0 allowed, but max = 1-2 = -1, so all filtered
+// TEST Q11: single chunk voiceChunks → only after_chunk 0 allowed (max = 1-1 = 0)
 questions = engine._extractInteractiveQuestions(validIQ, [{ text: 'Single', regionVert: [0, 1] }]);
-assert.deepStrictEqual(questions, [], 'Q11: single chunk → all after_chunk out of range');
-console.log('TEST Q11 PASS: single chunk → no questions possible');
+assert.strictEqual(questions.length, 1, 'Q11: single chunk → after_chunk 0 (last chunk) allowed');
+assert.strictEqual(questions[0].after_chunk, 0);
+console.log('TEST Q11 PASS: single chunk → question at last chunk allowed');
 
-// TEST Q12: voiceChunks.length = 2 → after_chunk max = 0 (only chunk 0 triggers question)
+// TEST Q12: voiceChunks.length = 2 → after_chunk max = 1 (last chunk index = 1 also allowed)
 const twoChunks = [{ text: 'C0' }, { text: 'C1' }];
 let jsonQ12 = {
   interactive_questions: [
@@ -212,4 +215,23 @@ questions = engine._extractInteractiveQuestions(jsonDec, voiceChunks);
 assert.deepStrictEqual(questions, [], 'Q14: non-monotonic after_chunk → []');
 console.log('TEST Q14 PASS: non-monotonic after_chunk → []');
 
-console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q14 = 20/20)');
+// TEST Q15: DeepSeek real output — 5 chunks, question after final chunk (after_chunk = 4 = length-1)
+const deepseekChunks = [
+  { text: 'C0', regionVert: [0, 0.2] },
+  { text: 'C1', regionVert: [0.2, 0.4] },
+  { text: 'C2', regionVert: [0.4, 0.6] },
+  { text: 'C3', regionVert: [0.6, 0.8] },
+  { text: 'C4', regionVert: [0.8, 1.0] }
+];
+let jsonDeepseek = {
+  voice_chunks: deepseekChunks,
+  interactive_questions: [
+    { after_chunk: 4, question: 'Hỏi cuối bài?', options: ['A', 'B', 'C', 'D'], correct_index: 2, explanation: 'Vì DeepSeek đặt câu hỏi cuối.' }
+  ]
+};
+questions = engine._extractInteractiveQuestions(jsonDeepseek, deepseekChunks);
+assert.strictEqual(questions.length, 1, 'Q15: question after final chunk accepted');
+assert.strictEqual(questions[0].after_chunk, 4);
+console.log('TEST Q15 PASS: DeepSeek question after final chunk accepted');
+
+console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q15 = 21/21)');
