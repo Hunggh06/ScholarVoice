@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 const py = `from fpdf import FPDF
 p = FPDF()
 p.add_page(); p.set_font('Helvetica', size=14)
-p.multi_cell(0, 8, 'Ma tran la khung. Dinh thuc la gia tri. Ma tran nghich dao khi dinh thuc khac khong.')
+p.multi_cell(0, 8, 'Dai so tuyen tinh la mon hoc quan trong. Ma tran la bang so gom hang va cot. Dinh thuc la mot gia tri so duoc tinh tu ma tran vuong. Phep nhan ma tran co nhung tinh chat dac biet. Ma tran nghich dao ton tai khi dinh thuc khac khong. Nhung khai niem nay la nen tang cua mon hoc.')
 p.output('/tmp/qa-pause.pdf')`;
 spawnSync('python3', ['-c', py]);
 
@@ -19,22 +19,29 @@ await page.addInitScript(() => {
   localStorage.setItem('ai_settings', JSON.stringify({ provider: 'deepseek', apiKey: 'fake', interactiveTeach: true }));
   const realSynth = window.speechSynthesis;
   let speaking = false;
-  let qPaused = false;
+  let cur = null;
   window.__qaSpeech = [];
   const m = {
     getVoices() { const r = realSynth?.getVoices?.(); return (r && r.length) ? r : [{ name: 'vi-VN - Mock', lang: 'vi-VN', voiceURI: 'm' }]; },
     speak(u) {
       speaking = true;
+      cur = u;
       window.__qaSpeech.push('SPEAK:' + (u.text || '').slice(0, 18));
       setTimeout(() => u.onstart?.(), 20);
       const tt = 450 + Math.min(900, (u.text || '').length * 12);
-      setTimeout(() => { if (!qPaused) { u.onend?.(); speaking = false; } }, tt);
+      setTimeout(() => { if (cur === u) { cur = null; u.onend?.(); speaking = false; } }, tt);
     },
-    cancel() { speaking = false; qPaused = false; },
-    pause() { qPaused = true; window.__qaSpeech.push('PAUSE'); },
-    resume() { qPaused = false; window.__qaSpeech.push('RESUME'); },
+    cancel() {
+      const u = cur;
+      cur = null;
+      speaking = false;
+      window.__qaSpeech.push('CANCEL');
+      if (u) queueMicrotask(() => u.onerror?.({ error: 'canceled' }));
+    },
+    pause() {},
+    resume() {},
     addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
-    get speaking() { return speaking; }, get pending() { return false; }, get paused() { return qPaused; }
+    get speaking() { return speaking; }, get pending() { return false; }, get paused() { return false; }
   };
   Object.defineProperty(window, 'speechSynthesis', { value: m, writable: true, configurable: true });
   window.speechSynthesis.onvoiceschanged = null;

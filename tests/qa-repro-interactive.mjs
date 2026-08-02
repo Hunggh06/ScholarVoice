@@ -18,7 +18,7 @@ await page.addInitScript(() => {
   localStorage.setItem('ai_settings', JSON.stringify({ provider: 'deepseek', apiKey: 'fake', interactiveTeach: true }));
   const realSynth = window.speechSynthesis;
   let speaking = false;
-  let qPaused = false;
+  let cur = null;
   window.__qaSpeech = [];
   window.__tt = window.__tt || [];
   const log = (s) => { window.__qaSpeech.push(s); window.__tt.push(s); };
@@ -26,16 +26,24 @@ await page.addInitScript(() => {
     getVoices() { const r = realSynth?.getVoices?.(); return (r && r.length) ? r : [{ name: 'vi-VN - Mock', lang: 'vi-VN', voiceURI: 'm' }]; },
     speak(u) {
       speaking = true;
+      cur = u;
       log('SPEAK:' + (u.text || '').slice(0, 14));
-      const tt = 250 + Math.min(400, (u.text || '').length * 8);
+      const tt = 300 + Math.min(500, (u.text || '').length * 10);
       setTimeout(() => u.onstart?.(), 15);
-      setTimeout(() => { if (!qPaused) { u.onend?.(); speaking = false; } }, tt);
+      setTimeout(() => { if (cur === u) { cur = null; u.onend?.(); speaking = false; } }, tt);
     },
-    cancel() { speaking = false; qPaused = false; },
-    pause() { qPaused = true; log('PAUSE'); },
-    resume() { qPaused = false; log('RESUME'); },
+    cancel() {
+      // Chrome: cancel() mới dừng được — fire onerror('canceled') cho utterance đang nói
+      const u = cur;
+      cur = null;
+      speaking = false;
+      log('CANCEL');
+      if (u) queueMicrotask(() => u.onerror?.({ error: 'canceled' }));
+    },
+    pause() { /* Chromium bug: pause() không dừng âm thanh — engine gọi cancel() thay thế */ },
+    resume() {},
     addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
-    get speaking() { return speaking; }, get pending() { return false; }, get paused() { return qPaused; }
+    get speaking() { return speaking; }, get pending() { return false; }, get paused() { return false; }
   };
   Object.defineProperty(window, 'speechSynthesis', { value: m, writable: true, configurable: true });
   try {
