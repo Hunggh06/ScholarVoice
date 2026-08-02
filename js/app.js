@@ -155,10 +155,15 @@ class App {
     if (!this._chunks || this._chunks.length === 0) return;
     const total = this._chunks.length;
     const targetIdx = Math.min(total - 1, Math.max(0, Math.floor((pct / 100) * total)));
-    while (this._qIdx < (this._questions ? this._questions.length : 0)
-           && this._questions[this._qIdx].after_chunk < targetIdx) {
-      this._qIdx++;
+    // Recompute _qIdx from the new position: only questions whose after_chunk
+    // comes AFTER this seek position should still be asked (backwards seek
+    // re-enables questions that were already skipped forward).
+    let qIdx = 0;
+    while (qIdx < (this._questions ? this._questions.length : 0)
+           && this._questions[qIdx].after_chunk < targetIdx) {
+      qIdx++;
     }
+    this._qIdx = qIdx;
     this._awaitingAnswer = false;
     this.ttsEngine.stop();
 
@@ -881,6 +886,7 @@ class App {
         }
         this._updateSubtitleForChunk(i, chunk.text);
         this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${i + 1}`);
+        this._updatePlayPauseBtn(true);
         if (!this.ttsEngine._fullText && this._chunks) {
           this.ttsEngine._fullText = this._chunks.map(c => c.text || '').join(' ');
         }
@@ -888,6 +894,10 @@ class App {
         this._updateSeekSlider(true);
         document.getElementById('seek-duration').textContent = this._formatTime(1);
         document.getElementById('seek-slider').max = 100;
+      },
+
+      onChunkProgress: (pct) => {
+        if (!this._seekDragging) this._updateSeekProgress(pct);
       },
 
       onChunkEnd: (i, chunk) => {
@@ -1085,7 +1095,15 @@ class App {
       if (this.ttsEngine.isSpeaking && !this.ttsEngine.isPaused) {
         this.ttsEngine.pause();
       } else if (this.ttsEngine.isPaused) {
-        this.ttsEngine.resume();
+        if (this._chunks && this._chunks.length > 0 && this._currentChunkIdx < this._chunks.length) {
+          if (this.ttsEngine._resumeChunkResolve) {
+            this.ttsEngine.resume();
+          } else {
+            this._resumeSequenceFrom(this._currentChunkIdx);
+          }
+        } else {
+          this.ttsEngine.resume();
+        }
       } else if (this._chunks && this._chunks.length > 0 && this._currentChunkIdx < this._chunks.length) {
         if (this._awaitingAnswer) {
           this._updateVoiceStatus('done', '❓ Đang chờ bạn trả lời...');
@@ -1170,7 +1188,12 @@ class App {
     };
 
     this.ttsEngine.onResume = () => {
-      this._updateVoiceStatus('speaking', 'Đang giảng bài...');
+      if (this._chunks && this._chunks[this._currentChunkIdx]) {
+        this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${this._currentChunkIdx + 1}`);
+        this._updateSubtitleForChunk(this._currentChunkIdx, this._chunks[this._currentChunkIdx].text);
+      } else {
+        this._updateVoiceStatus('speaking', 'Đang giảng bài...');
+      }
       this._updatePlayPauseBtn(true);
     };
 
