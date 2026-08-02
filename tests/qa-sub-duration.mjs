@@ -140,6 +140,17 @@ s = await rd();
 assert(s.dur === durBase, `dur giữ nguyên khi resume chunk 2 (dur=${s.dur})`);
 assert(s.val >= 33, `seek val global khi ở chunk 2 (val=${s.val}, >=33)`);
 
+// ---- Bug "sub đứng im": sub phải đẩy theo câu (sentence-level) trong chunk ----
+// Chunk 2 = 'chunk hai. Dinh thuc la gia tri so.'
+// Trước fix: sub LUÔN hiện toàn bộ chunk text (đứng im) — không bao giờ bằng
+// đúng một câu. Sau fix: sub thu hẹp thành từng câu một khi audio chạy.
+const subAdvanced = await until(async () => {
+  const st = await rd();
+  return st.sub === 'chunk hai.' || st.sub === 'Dinh thuc la gia tri so.';
+}, 8000);
+s = await rd();
+assert(subAdvanced, `sub advance thành đúng 1 câu trong chunk 2: "${s.sub.slice(0, 40)}"`);
+
 // ---- Câu hỏi 2 (after_chunk=2) → val phải ~100 trước khi hỏi ----
 const q2Seen = await until(async () => (await ch()).some(m => m.includes('Dinh thuc tinh tu dau?')));
 assert(q2Seen, 'câu hỏi 2 hiện trong chat');

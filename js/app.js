@@ -43,6 +43,10 @@ class App {
     this._suppressGlobalTts = false;
     // Index chunk để resume sau khi confirm-speak kết thúc (tránh sub nhảy).
     this._resumeAfterQuestion = null;
+    // Tiến trình local đã hiển thị trong chunk hiện tại — ngăn sub/seek "nhảy lùi".
+    this._chunkLastLocal = 0;
+    // Sentence đang hiện trong chunk — ngăn sub nhảy về câu trước.
+    this._chunkSubShownIdx = 0;
   }
 
   _cancelPrefetch() {
@@ -269,6 +273,33 @@ class App {
     const short = text.length > 200 ? text.slice(0, 200) + '...' : text;
     el.textContent = short;
     el.classList.remove('hidden');
+  }
+
+  _updateSubtitleForChunkText(text, localPct) {
+    const el = document.getElementById('subtitle-text');
+    if (!el) return;
+    const clean = this._cleanVoiceText(text);
+    const sentences = this._splitSentences(clean);
+    if (sentences.length === 0) { el.innerHTML = ''; return; }
+
+    const cumLen = [];
+    let totalLen = 0;
+    for (const s of sentences) {
+      totalLen += s.length;
+      cumLen.push(totalLen);
+    }
+
+    const charPos = Math.floor(localPct * totalLen);
+    let currentIdx = 0;
+    for (let i = 0; i < cumLen.length; i++) {
+      if (charPos < cumLen[i]) { currentIdx = i; break; }
+      currentIdx = i;
+    }
+    if (currentIdx < this._chunkSubShownIdx) currentIdx = this._chunkSubShownIdx;
+    this._chunkSubShownIdx = currentIdx;
+
+    const sentence = sentences[currentIdx] || '';
+    el.innerHTML = this._escapeHtml(sentence);
   }
 
   // ============================================================
@@ -886,6 +917,8 @@ class App {
     return {
       onChunkStart: (i, chunk) => {
         this._currentChunkIdx = i;
+        this._chunkLastLocal = 0;
+        this._chunkSubShownIdx = 0;
         if (chunk.regionVert) {
           this.pdfViewer.setHighlightRegion(chunk.regionVert);
         } else {
@@ -911,8 +944,15 @@ class App {
         if (this._seekDragging) return;
         const total = this._chunks ? this._chunks.length : 0;
         if (total <= 0) return;
-        const local = Math.min(1, Math.max(0, pct));
+        // Engine emit pct từ interval đồng hồ + boundary events chạy đua nhau
+        // → có thể tụt về giá trị cũ; kẹp monotonic để sub/seek không "nhảy lùi".
+        const local = Math.max(this._chunkLastLocal, Math.min(1, Math.max(0, pct)));
+        this._chunkLastLocal = local;
         this._updateSeekProgress((this._currentChunkIdx + local) / total);
+        const chunk = this._chunks[this._currentChunkIdx];
+        if (chunk && chunk.text) {
+          this._updateSubtitleForChunkText(chunk.text, local);
+        }
       },
 
       onChunkEnd: (i, chunk) => {
