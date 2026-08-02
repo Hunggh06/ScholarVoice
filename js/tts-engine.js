@@ -191,7 +191,7 @@ export class TTSEngine {
           this._isSpeaking = false;
           this._isPaused = false;
           if (onChunkProgress && chunkIndex != null && totalChunks > 0) {
-            onChunkProgress((chunkIndex + 1) / totalChunks);
+            onChunkProgress(1);
           }
           done('end');
         };

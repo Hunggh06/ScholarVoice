@@ -38,6 +38,11 @@ class App {
     this._qIdx = 0;
     this._awaitingAnswer = false;
     this._currentChunkIdx = 0;
+    // Chặn global TTS callbacks (onStart/onEnd/onProgress) hijack UI
+    // trong lúc speak câu hỏi/xác nhận của luồng tương tác đang chạy.
+    this._suppressGlobalTts = false;
+    // Index chunk để resume sau khi confirm-speak kết thúc (tránh sub nhảy).
+    this._resumeAfterQuestion = null;
   }
 
   _cancelPrefetch() {
@@ -798,6 +803,8 @@ class App {
       const chunks = entry.voice_chunks;
       const questions = entry.interactive_questions;
       if (this.aiEngine.interactiveTeach && Array.isArray(chunks) && chunks.length > 0 && Array.isArray(questions) && questions.length > 0) {
+        this._suppressGlobalTts = false;
+        this._resumeAfterQuestion = null;
         this._chunks = chunks;
         this._questions = questions;
         this._qIdx = 0;
@@ -887,7 +894,9 @@ class App {
         this._updateSubtitleForChunk(i, chunk.text);
         this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${i + 1}`);
         this._updatePlayPauseBtn(true);
-        if (!this.ttsEngine._fullText && this._chunks) {
+        // Luôn khôi phục _fullText từ toàn bộ chunks — không để tạm câu hỏi/xác nhận
+        // (speak giữa chừng có keepFullText) làm dur (thời lượng) bị thu nhỏ sau Q&A.
+        if (this._chunks) {
           this.ttsEngine._fullText = this._chunks.map(c => c.text || '').join(' ');
         }
         this._updateSeekProgress(this._chunks.length > 0 ? this._currentChunkIdx / this._chunks.length : 0);
@@ -897,7 +906,13 @@ class App {
       },
 
       onChunkProgress: (pct) => {
-        if (!this._seekDragging) this._updateSeekProgress(pct);
+        // pct từ engine là tiến trình LOCAL trong chunk (0..1) — quy về global
+        // bằng (chunkIdx + pct) / totalChunks để seek bar hiển thị đúng vị trí.
+        if (this._seekDragging) return;
+        const total = this._chunks ? this._chunks.length : 0;
+        if (total <= 0) return;
+        const local = Math.min(1, Math.max(0, pct));
+        this._updateSeekProgress((this._currentChunkIdx + local) / total);
       },
 
       onChunkEnd: (i, chunk) => {
@@ -963,7 +978,8 @@ class App {
     const ttsText = `${q.question}. A. ${q.options[0]}. B. ${q.options[1]}. C. ${q.options[2]}. D. ${q.options[3]}.`;
     this._updateSubtitleForChunk('Q', `${leadIn} ${ttsText}`);
     this._awaitingAnswer = true;
-    this.ttsEngine.speak(`${leadInVoice}. .. ${ttsText}`);
+    this._suppressGlobalTts = true;
+    this.ttsEngine.speak(`${leadInVoice}. .. ${ttsText}`, { keepFullText: true });
     this._updateVoiceStatus('done', '❓ Đang chờ bạn trả lời...');
   }
 
@@ -1130,6 +1146,8 @@ class App {
       this._questions = null;
       this._qIdx = 0;
       this._awaitingAnswer = false;
+      this._suppressGlobalTts = false;
+      this._resumeAfterQuestion = null;
       this.ttsEngine.stop();
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
@@ -1151,6 +1169,7 @@ class App {
 
   _setupTTSCallbacks() {
     this.ttsEngine.onStart = () => {
+      if (this._suppressGlobalTts) return false;
       if (this._chunks) return false;
       this._updateVoiceStatus('speaking', 'Đang giảng bài...');
       this._updatePlayPauseBtn(true);
@@ -1161,6 +1180,16 @@ class App {
     };
 
     this.ttsEngine.onEnd = () => {
+      // Kết thúc speak trôi nổi (câu hỏi/xác nhận): bỏ khóa UI, resume sequence nếu đang chờ.
+      if (this._suppressGlobalTts) {
+        this._suppressGlobalTts = false;
+        const resumeIdx = this._resumeAfterQuestion;
+        this._resumeAfterQuestion = null;
+        if (resumeIdx !== null) {
+          this._resumeSequenceFrom(resumeIdx);
+        }
+        return false;
+      }
       if (this._chunks) return false;
       this._isTeaching = false;
       this._justTaught = true;
@@ -1198,18 +1227,25 @@ class App {
     };
 
     this.ttsEngine.onError = (err) => {
+      this._suppressGlobalTts = false;
+      // Nếu lỗi xảy ra giữa confirm-speak (đang đợi resume) thì vẫn tiếp tục giảng
+      // thay vì kẹt sequence — không để mất cơ hội resume.
+      const resumeIdx = this._resumeAfterQuestion;
+      this._resumeAfterQuestion = null;
       this._isTeaching = false;
       this._updateVoiceStatus('error', err.message);
       this._updateSeekSlider(false);
       this.currentSegments = null;
       this.pdfViewer.clearHighlight();
       this._clearSubtitle();
+      if (resumeIdx !== null) this._resumeSequenceFrom(resumeIdx);
     };
 
     this.ttsEngine.onProgress = (pct) => {
       // Bỏ qua cập nhật UI từ onProgress nếu đang giảng theo chunk (interactive)
       // vì chunk có tiến trình riêng và các câu hỏi/xác nhận cũng gọi ttsEngine.speak
       // làm pct bị nhảy lung tung so với văn bản gốc.
+      if (this._suppressGlobalTts) return;
       if (this._chunks) return;
 
       this._updateSeekProgress(pct);
@@ -1433,7 +1469,7 @@ class App {
 
     if (userIndex === undefined) {
       this.chatManager.addAIMessage('⚠️ Vui lòng trả lời A, B, C hoặc D.');
-      this.ttsEngine.speak(this._cleanVoiceText('Vui lòng trả lời A, B, C hoặc D.'));
+      this.ttsEngine.speak(this._cleanVoiceText('Vui lòng trả lời A, B, C hoặc D.'), { keepFullText: true });
       return;
     }
 
@@ -1451,12 +1487,19 @@ class App {
     const ttsConfirm = isCorrect
       ? `Đúng rồi. ${q.explanation}`
       : `Sai rồi. Đáp án đúng là ${q.options[q.correct_index]}. ${q.explanation}`;
-    this._updateSubtitleForChunk('A', ttsConfirm);
-    this.ttsEngine.speak(this._cleanVoiceText(ttsConfirm));
+this._updateSubtitleForChunk('A', ttsConfirm);
+    // Khóa global callbacks từ confirm-speak (nếu không, khi chunk cuối đã hết,
+    // _chunks = null nên onStart/onEnd/onProgress của speak này sẽ test UI).
+    this._suppressGlobalTts = true;
+    this._resumeAfterQuestion = this._currentChunkIdx + 1;
+    this.ttsEngine.speak(this._cleanVoiceText(ttsConfirm), { keepFullText: true });
+    this._updateVoiceStatus('done', isCorrect ? '✅ Đúng, đang xác nhận...' : '❌ Sai, đang xác nhận...');
 
     this._qIdx++;
     this._awaitingAnswer = false;
-    this._resumeTeachingAfterQuestion();
+    // KHÔNG resume ngay: chờ onEnd của confirm-speak (qua global TTS callbacks)
+    // để speak xác nhận được nghe trọn và sub không "nhảy" sang chunk tiếp theo
+    // giữa chừng câu xác nhận. _resumeAfterQuestion được tiêu thụ trong onEnd.
   }
 
   _resumeSequenceFrom(startIdx, statusText = 'Đang giảng tiếp...') {
