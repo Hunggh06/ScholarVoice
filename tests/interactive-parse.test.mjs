@@ -234,4 +234,19 @@ assert.strictEqual(questions.length, 1, 'Q15: question after final chunk accepte
 assert.strictEqual(questions[0].after_chunk, 4);
 console.log('TEST Q15 PASS: DeepSeek question after final chunk accepted');
 
-console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q15 = 21/21)');
+// TEST Q16: lead_in được trích xuất; nếu thiếu/trống → null (fallback trong UI)
+let jsonLead = {
+  interactive_questions: [
+    { after_chunk: 0, lead_in: 'Bây giờ tôi sẽ hỏi em câu này', question: 'Q1?', options: ['A', 'B', 'C', 'D'], correct_index: 0, explanation: 'e' },
+    { after_chunk: 1, lead_in: '   ', question: 'Q2?', options: ['X', 'Y', 'Z', 'W'], correct_index: 1, explanation: 'e' },
+    { after_chunk: 2, question: 'Q3?', options: ['M', 'N', 'O', 'P'], correct_index: 2, explanation: 'e' }
+  ]
+};
+questions = engine._extractInteractiveQuestions(jsonLead, voiceChunks);
+assert.strictEqual(questions.length, 3, 'Q16: 3 questions');
+assert.strictEqual(questions[0].lead_in, 'Bây giờ tôi sẽ hỏi em câu này');
+assert.strictEqual(questions[1].lead_in, null, 'Q16: empty lead_in trim → null');
+assert.strictEqual(questions[2].lead_in, null, 'Q16: missing lead_in → null');
+console.log('TEST Q16 PASS: lead_in extracted, empty/missing → null');
+
+console.log('✅ interactive-parse: tất cả test pass (V1-V6 + Q1-Q16 = 22/22)');

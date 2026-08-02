@@ -238,6 +238,7 @@ QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
   "interactive_questions": [
     {
       "after_chunk": 0,
+      "lead_in": "câu nói dẫn dắt tự nhiên để đưa vào câu hỏi, ví dụ: Bây giờ tôi sẽ hỏi em câu này",
       "question": "Câu hỏi tiếng Việt?",
       "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
       "correct_index": 1,
@@ -267,6 +268,7 @@ QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
   "interactive_questions": [
     {
       "after_chunk": 0,
+      "lead_in": "câu nói dẫn dắt tự nhiên để đưa vào câu hỏi, ví dụ: Bây giờ tôi sẽ hỏi em câu này",
       "question": "Câu hỏi tiếng Việt?",
       "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
       "correct_index": 1,
@@ -552,6 +554,7 @@ Trả lời bằng JSON với 2 trường:
 
       result.push({
         after_chunk: q.after_chunk,
+        lead_in: typeof q.lead_in === 'string' && q.lead_in.trim() ? q.lead_in.trim() : null,
         question: q.question,
         options: q.options,
         correct_index: q.correct_index,

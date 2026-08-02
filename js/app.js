@@ -893,18 +893,33 @@ class App {
   }
 
   _showInteractiveQuestion(q) {
+    const leadIn = (q.lead_in && q.lead_in.trim())
+      ? q.lead_in.trim()
+      : this._pickQuestionLeadIn();
+
     const questionText = `❓ ${q.question}`;
     const optionsText = `\n\nA. ${q.options[0]}\nB. ${q.options[1]}\nC. ${q.options[2]}\nD. ${q.options[3]}`;
-    this.chatManager.addAIMessage(questionText + optionsText);
+    this.chatManager.addAIMessage(`${leadIn}\n\n${questionText}${optionsText}`);
     this.chatManager.switchTab('chat');
 
-    // TTS đọc câu hỏi
+    // TTS đọc câu dẫn có quãng nghỉ rồi mới đọc câu hỏi
+    const leadInVoice = this._cleanVoiceText(leadIn);
     const ttsText = `${q.question}. A. ${q.options[0]}. B. ${q.options[1]}. C. ${q.options[2]}. D. ${q.options[3]}.`;
-    this._updateSubtitleForChunk('Q', ttsText);
-    this.ttsEngine.speak(this._cleanVoiceText(ttsText));
-
+    this._updateSubtitleForChunk('Q', `${leadIn} ${ttsText}`);
     this._awaitingAnswer = true;
+    this.ttsEngine.speak(`${leadInVoice}. .. ${ttsText}`);
     this._updateVoiceStatus('done', '❓ Đang chờ bạn trả lời...');
+  }
+
+  _pickQuestionLeadIn() {
+    const pool = [
+      'Bây giờ tôi sẽ hỏi bạn một câu hỏi nhanh nhé.',
+      'Được rồi, hãy lắng nghe câu hỏi dưới đây.',
+      'Vừa giảng xong, giờ tôi kiểm tra xem bạn đã hiểu chưa.',
+      'Có một câu hỏi nho nhỏ sau phần vừa rồi.',
+      'Theo dõi tiếp nhé, tôi sẽ hỏi bạn câu này.'
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   /**
