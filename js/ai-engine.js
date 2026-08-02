@@ -207,7 +207,8 @@ CÁCH ĐỌC SLIDE:
 
 TƯƠNG TÁC HỎI ĐÁP (tùy chọn):
 - Bạn CÓ THỂ chèn câu hỏi trắc nghiệm vào giữa bài giảng để kiểm tra mức độ hiểu của sinh viên.
-- KHI NÀO HỎI: Trang có nhiều khái niệm, công thức, điểm quan trọng → 1-3 câu hỏi. Trang tiêu đề, giới thiệu, ngắn → KHÔNG hỏi (interactive_questions: []).
+- KHI NÀO HỎI: Trang có nhiều khái niệm, công thức, điểm quan trọng → 2-3 câu hỏi. Trang tiêu đề, giới thiệu, ngắn → KHÔNG hỏi (interactive_questions: []).
+- PHÂN BỐ: mỗi câu hỏi phải có after_chunk khác nhau và chia nhau đều dọc theo bài giảng (câu 1 sau chunk đầu, câu 2 ở giữa, câu 3 gần cuối) — không dồn hết vào đầu bài.
 - CÂU HỎI: Tiếng Việt, 4 đáp án A/B/C/D, 1 đúng + 3 nhiễu hợp lý, correct_index là index của đáp án đúng (0-3).
 - GIẢI THÍCH: explanation ngắn gọn 1-2 câu, giải thích tại sao đáp án đó đúng.
 - after_chunk: số thứ tự chunk (bắt đầu từ 0) mà SAU KHI đọc xong chunk đó sẽ hỏi.`;
@@ -246,8 +247,8 @@ QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
     }
   ]
 }
-voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn nhỏ (2-5 đoạn).
-interactive_questions là mảng 0-3 câu hỏi trắc nghiệm. Nếu không có câu hỏi thì trả về mảng rỗng [].
+voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn vừa đủ (3-4 đoạn cho trang nội dung) để chèn câu hỏi giữa chừng.
+interactive_questions là mảng 2-3 câu hỏi trắc nghiệm cho trang nội dung (mỗi câu ở một after_chunk khác nhau), trả về mảng rỗng [] cho trang tiêu đề.
 KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     } else if (wantsInteractive) {
       expectJson = true;
@@ -276,8 +277,8 @@ QUAN TRỌNG: Trả về kết quả dạng JSON với cấu trúc sau:
     }
   ]
 }
-voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn nhỏ (2-5 đoạn).
-interactive_questions là mảng 0-3 câu hỏi trắc nghiệm. Nếu không có câu hỏi thì trả về mảng rỗng [].
+voice_chunks thay thế cho trường "segments" cũ (KHÔNG dùng "segments" nữa). Chia bài giảng thành các đoạn vừa đủ (3-4 đoạn cho trang nội dung) để chèn câu hỏi giữa chừng.
+interactive_questions là mảng 2-3 câu hỏi trắc nghiệm cho trang nội dung (mỗi câu ở một after_chunk khác nhau), trả về mảng rỗng [] cho trang tiêu đề.
 KHÔNG thêm bất kỳ text nào ngoài JSON.`;
     } else {
       userPrompt = pageText
