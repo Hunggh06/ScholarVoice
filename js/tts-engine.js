@@ -150,8 +150,11 @@ export class TTSEngine {
         const v = voices.find(v => (v.lang + ' - ' + v.name) === this._voiceId);
         if (v) utterance.voice = v;
       }
-      utterance.onend = () => resolve();
+      utterance.onstart = () => { this._isSpeaking = true; this._isPaused = false; };
+      utterance.onend = () => { this._isSpeaking = false; this._isPaused = false; resolve(); };
       utterance.onerror = (e) => {
+        this._isSpeaking = false;
+        this._isPaused = false;
         if (e.error === 'canceled' || e.error === 'interrupted') resolve();
         else reject(new Error(e.error));
       };

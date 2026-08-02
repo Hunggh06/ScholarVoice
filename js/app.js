@@ -773,7 +773,16 @@ class App {
     const targetPage = this.pdfViewer.currentPage;
 
     const entry = this.aiEngine._getPageCache(targetPage);
-    if (entry) {
+    const hasUsableContent = entry && (
+      (typeof entry.voice_text === 'string' && entry.voice_text.trim().length > 0) ||
+      (Array.isArray(entry.voice_chunks) && entry.voice_chunks.length > 0)
+    );
+    if (entry && !hasUsableContent) {
+      const badKey = `page_${targetPage}_${this.aiEngine.provider}_${this.aiEngine.teachingStyle}`;
+      this.aiEngine.pageCache.delete(badKey);
+      this._updatePageCacheBar();
+    }
+    if (hasUsableContent) {
       if (this.pdfViewer.currentPage !== targetPage) return;
 
       this.currentVoiceText = entry.voice_text;
@@ -1077,6 +1086,12 @@ class App {
         this.ttsEngine.pause();
       } else if (this.ttsEngine.isPaused) {
         this.ttsEngine.resume();
+      } else if (this._chunks && this._chunks.length > 0 && this._currentChunkIdx < this._chunks.length) {
+        if (this._awaitingAnswer) {
+          this._updateVoiceStatus('done', '❓ Đang chờ bạn trả lời...');
+        } else {
+          this._resumeSequenceFrom(this._currentChunkIdx);
+        }
       } else if (this.currentVoiceText) {
         const seekPct = this.ttsEngine._seekOffsetPct;
         if (seekPct > 0) {
@@ -1421,24 +1436,8 @@ class App {
     this._resumeTeachingAfterQuestion();
   }
 
-  _resumeTeachingAfterQuestion() {
-    const nextChunkIdx = this._currentChunkIdx + 1;
-    if (this._chunks && nextChunkIdx < this._chunks.length) {
-      const remainingChunks = this._chunks.slice(nextChunkIdx);
-      const resumeCallbacks = this._makeSpeakSequenceCallbacks();
-      const origOnChunkStart = resumeCallbacks.onChunkStart;
-      const origOnChunkEnd = resumeCallbacks.onChunkEnd;
-      resumeCallbacks.onChunkStart = (i, chunk) => {
-        this._currentChunkIdx = nextChunkIdx + i;
-        if (origOnChunkStart) origOnChunkStart(nextChunkIdx + i, chunk);
-      };
-      resumeCallbacks.onChunkEnd = (i, chunk) => {
-        if (origOnChunkEnd) return origOnChunkEnd(nextChunkIdx + i, chunk);
-        return true;
-      };
-      this.ttsEngine.speakSequence(remainingChunks, resumeCallbacks);
-      this._updateVoiceStatus('speaking', 'Đang giảng tiếp...');
-    } else {
+  _resumeSequenceFrom(startIdx, statusText = 'Đang giảng tiếp...') {
+    if (!this._chunks || startIdx >= this._chunks.length) {
       this._isTeaching = false;
       this._justTaught = true;
       this._chunks = null;
@@ -1459,7 +1458,28 @@ class App {
           }
         }, 2500);
       }
+      return;
     }
+
+    const remainingChunks = this._chunks.slice(startIdx);
+    const resumeCallbacks = this._makeSpeakSequenceCallbacks();
+    const origOnChunkStart = resumeCallbacks.onChunkStart;
+    const origOnChunkEnd = resumeCallbacks.onChunkEnd;
+    resumeCallbacks.onChunkStart = (i, chunk) => {
+      this._currentChunkIdx = startIdx + i;
+      if (origOnChunkStart) origOnChunkStart(startIdx + i, chunk);
+    };
+    resumeCallbacks.onChunkEnd = (i, chunk) => {
+      if (origOnChunkEnd) return origOnChunkEnd(startIdx + i, chunk);
+      return true;
+    };
+    this.ttsEngine.speakSequence(remainingChunks, resumeCallbacks);
+    this._updateVoiceStatus('speaking', statusText);
+  }
+
+  _resumeTeachingAfterQuestion() {
+    if (this._awaitingAnswer) return;
+    this._resumeSequenceFrom(this._currentChunkIdx + 1);
   }
 
   // ============================================================

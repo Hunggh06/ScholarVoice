@@ -324,7 +324,9 @@ KHÔNG thêm bất kỳ text nào ngoài JSON.`;
 
     const result = { voice_text: voiceText, segments, isTitleSlide, voice_chunks: voiceChunks, interactive_questions: interactiveQuestions };
     const cacheKey = `page_${pageNum}_${this.provider}_${this.teachingStyle}`;
-    this.pageCache.set(cacheKey, result);
+    if (voiceText && voiceText.trim().length > 0) {
+      this.pageCache.set(cacheKey, result);
+    }
     return result;
   }
 
