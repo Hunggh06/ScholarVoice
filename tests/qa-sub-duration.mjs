@@ -20,6 +20,9 @@ const browser = await chromium.launch();
 const page = await (await browser.newContext()).newPage();
 await page.addInitScript(() => {
   localStorage.setItem('ai_settings', JSON.stringify({ provider: 'deepseek', apiKey: 'fake', interactiveTeach: true }));
+  // Simulate the user's high-speed setup: rate 2.0 → chunk TTS speech is short
+  // and progress must track real onboundary positions, not a slow clock estimate.
+  localStorage.setItem('tts_rate', '2.0');
   let speaking = false;
   let cur = null;
   const m = {
@@ -27,8 +30,19 @@ await page.addInitScript(() => {
     speak(u) {
       speaking = true;
       cur = u;
+      const txt = u.text || '';
+      const len = txt.length;
+      const rate = parseFloat(localStorage.getItem('tts_rate') || '1.0');
+      const tt = (350 + Math.min(700, len * 10)) / rate;
       setTimeout(() => u.onstart?.(), 15);
-      const tt = 350 + Math.min(700, (u.text || '').length * 10);
+      const steps = Math.max(3, Math.min(8, Math.ceil(len / 8)));
+      for (let i = 1; i <= steps; i++) {
+        const frac = i / steps;
+        setTimeout(() => {
+          if (cur !== u) return;
+          u.onboundary?.({ charIndex: Math.min(len - 1, Math.floor(len * frac)) });
+        }, 15 + frac * tt);
+      }
       setTimeout(() => { if (cur === u) { cur = null; u.onend?.(); speaking = false; } }, tt);
     },
     cancel() {
@@ -140,16 +154,16 @@ s = await rd();
 assert(s.dur === durBase, `dur giữ nguyên khi resume chunk 2 (dur=${s.dur})`);
 assert(s.val >= 33, `seek val global khi ở chunk 2 (val=${s.val}, >=33)`);
 
-// ---- Bug "sub đứng im": sub phải đẩy theo câu (sentence-level) trong chunk ----
-// Chunk 2 = 'chunk hai. Dinh thuc la gia tri so.'
-// Trước fix: sub LUÔN hiện toàn bộ chunk text (đứng im) — không bao giờ bằng
-// đúng một câu. Sau fix: sub thu hẹp thành từng câu một khi audio chạy.
-const subAdvanced = await until(async () => {
+// ---- Bug "sub lag khi tốc độ cao": ở rate 2.0 sub phải đuổi kịp câu THỰC TẾ ----
+// Chunk 2 = 'chunk hai. Dinh thuc la gia tri so.' (chạy rất ngắn ở rate 2).
+// Cũ (clock-estimate): sub kẹt mãi 'chunk hai.' → không bao giờ hiện 'Dinh thuc la gia tri so.'
+// Mới (boundary-driven): sub khớp vị trí ký tự thật → hiện đúng câu 2 khi đọc tới đó.
+const subOnSentence2 = await until(async () => {
   const st = await rd();
-  return st.sub === 'chunk hai.' || st.sub === 'Dinh thuc la gia tri so.';
-}, 8000);
+  return st.sub === 'Dinh thuc la gia tri so.' && st.val >= 33 && st.val < 66;
+}, 8000, 50);
 s = await rd();
-assert(subAdvanced, `sub advance thành đúng 1 câu trong chunk 2: "${s.sub.slice(0, 40)}"`);
+assert(subOnSentence2, `sub theo tới câu 2 của chunk 2 ở rate 2.0: "${s.sub.slice(0, 40)}"`);
 
 // ---- Câu hỏi 2 (after_chunk=2) → val phải ~100 trước khi hỏi ----
 const q2Seen = await until(async () => (await ch()).some(m => m.includes('Dinh thuc tinh tu dau?')));

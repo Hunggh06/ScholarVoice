@@ -167,10 +167,14 @@ export class TTSEngine {
         const emitProgress = () => {
           if (!onChunkProgress) return;
           let localPct;
-          if (lastChunkChar > 0 && baseChar > 0) {
+          if (lastChunkChar > 0) {
+            // Bám theo boundary THẬT từ TTS — tiến trình đúng tốc độ đọc dù rate cao.
+            // (Trước đây ràng buộc baseChar > 0 khiến chunk đọc từ đầu luôn rơi vào
+            // nhánh ước lượng đồng hồ → sub lag khi tốc độ cao.)
             const est = lastChunkChar + ((performance.now() - lastChunkBoundaryAt) / 1000) * 10 * this._rate;
             localPct = est / Math.max(1, text.length);
           } else {
+            // Chưa có boundary nào (khởi đọc <100ms): fallback ước lượng đồng hồ.
             const origLen = Math.max(1, text.length);
             const elapsed = (performance.now() - chunkStart) / 1000;
             const estDur = Math.max(1, (text.length - baseChar) / (12 * this._rate));
