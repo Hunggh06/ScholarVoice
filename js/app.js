@@ -1378,8 +1378,19 @@ class App {
 
     const q = this._questions[this._qIdx];
 
-    const normalized = text.trim();
-    const firstChar = normalized.charAt(0).toUpperCase();
+    // Trích chữ cái đáp án — phải khớp chính xác các pattern của _looksLikeAnswer,
+    // KHÔNG dùng chữ cái đầu (vd "em chọn A" / "chọn" bắt đầu bằng c)
+    const low = text.trim().toLowerCase();
+    let answerLetter = '';
+    if (/^[a-d][.)]?\s*$/.test(low)) {
+      answerLetter = low.charAt(0);
+    } else if (/^[a-d][.):]\s/.test(low) && !low.includes('?') && low.length <= 4) {
+      answerLetter = low.charAt(0);
+    } else {
+      const m = low.match(/^(đáp án|câu trả lời|em chọn|tôi chọn|chọn)\s*([a-d])/);
+      if (m) answerLetter = m[2];
+    }
+    const firstChar = answerLetter.toUpperCase();
     const userIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[firstChar];
 
     if (userIndex === undefined) {
@@ -1388,7 +1399,7 @@ class App {
       return;
     }
 
-    this.chatManager.addUserMessage(normalized.toUpperCase());
+    this.chatManager.addUserMessage(text.trim().toUpperCase());
 
     const isCorrect = userIndex === q.correct_index;
     let confirmText;

@@ -100,8 +100,8 @@ for (let i = 0; i < 8; i++) {
 }
 console.log('question surfaced:', hasQuestion);
 
-// Trả lời
-await page.fill('#chat-input', 'A');
+// Trả lời dạng hành văn đầy đủ (regression: charAt(0) từng bị đọc sai thành C)
+await page.fill('#chat-input', 'em chọn A');
 await page.press('#chat-input', 'Enter');
 await page.waitForTimeout(2000);
 
