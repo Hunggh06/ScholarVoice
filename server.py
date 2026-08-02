@@ -83,6 +83,13 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def send_response(self, code, message=None):
+        super().send_response(code, message)
+        if not self.path.startswith('/api/'):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+
     def _send_json(self, data, status=200):
         body = json.dumps(data).encode('utf-8')
         self.send_response(status)
