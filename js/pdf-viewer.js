@@ -31,12 +31,6 @@ export class PDFViewer {
     this.overlayCtx = this.overlayCanvas.getContext('2d');
     this._highlightRegion = null;
 
-    this.pointer = document.createElement('div');
-    this.pointer.id = 'pdf-pointer';
-    this.pointer.style.cssText = 'position:absolute;left:8px;pointer-events:none;z-index:5;display:none;transition:top 0.3s ease;';
-    this.pointer.innerHTML = '<span style="font-size:1.8rem;display:inline-block;animation:pointerBounce 0.6s ease-in-out infinite alternate;filter:drop-shadow(0 2px 6px rgba(255,200,0,0.6));">👉</span>';
-    this.canvasContainer.appendChild(this.pointer);
-
     this._resizeObserver = new ResizeObserver(() => {
       if (this.pdfDoc && !this.rendering) {
         this.renderPage(this.currentPage);
@@ -98,7 +92,6 @@ export class PDFViewer {
   _applyPan() {
     this.canvas.style.transform = `translate(${this._panX}px, ${this._panY}px)`;
     this.overlayCanvas.style.transform = `translate(${this._panX}px, ${this._panY}px)`;
-    if (this.pointer) this.pointer.style.transform = `translate(${this._panX}px, ${this._panY}px)`;
   }
 
   _resetPan() {
@@ -200,23 +193,11 @@ export class PDFViewer {
   setHighlightRegion(regionVert) {
     this._highlightRegion = regionVert;
     this._drawOverlay();
-    this._updatePointer(regionVert);
   }
 
   clearHighlight() {
     this._highlightRegion = null;
     this._drawOverlay();
-    if (this.pointer) this.pointer.style.display = 'none';
-  }
-
-  _updatePointer(regionVert) {
-    if (!this.pointer || !regionVert) return;
-    const [topPct] = regionVert;
-    const h = this.canvas.offsetHeight;
-    const topY = Math.round(topPct * h) - 14;
-    this.pointer.style.display = 'block';
-    this.pointer.style.top = Math.max(0, topY) + 'px';
-    this.pointer.style.animation = 'pointerBounce 0.6s ease-in-out infinite alternate';
   }
 
   _drawOverlay() {

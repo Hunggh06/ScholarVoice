@@ -143,8 +143,39 @@ class App {
     slider.addEventListener('change', () => {
       this._seekDragging = false;
       const pct = parseInt(slider.value);
-      this.ttsEngine.seekTo(pct);
+      if (this._chunks && this._chunks.length > 0) {
+        this._seekChunks(pct);
+      } else {
+        this.ttsEngine.seekTo(pct);
+      }
     });
+  }
+
+  _seekChunks(pct) {
+    if (!this._chunks || this._chunks.length === 0) return;
+    const total = this._chunks.length;
+    const targetIdx = Math.min(total - 1, Math.max(0, Math.floor((pct / 100) * total)));
+    while (this._qIdx < (this._questions ? this._questions.length : 0)
+           && this._questions[this._qIdx].after_chunk < targetIdx) {
+      this._qIdx++;
+    }
+    this._awaitingAnswer = false;
+    this.ttsEngine.stop();
+
+    const remainingChunks = this._chunks.slice(targetIdx);
+    const resumeCallbacks = this._makeSpeakSequenceCallbacks();
+    const origOnChunkStart = resumeCallbacks.onChunkStart;
+    const origOnChunkEnd = resumeCallbacks.onChunkEnd;
+    resumeCallbacks.onChunkStart = (i, chunk) => {
+      this._currentChunkIdx = targetIdx + i;
+      if (origOnChunkStart) origOnChunkStart(targetIdx + i, chunk);
+    };
+    resumeCallbacks.onChunkEnd = (i, chunk) => {
+      if (origOnChunkEnd) return origOnChunkEnd(targetIdx + i, chunk);
+      return true;
+    };
+    this.ttsEngine.speakSequence(remainingChunks, resumeCallbacks);
+    this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${targetIdx + 1}`);
   }
 
   _updateSeekSlider(enabled) {
@@ -841,7 +872,13 @@ class App {
         }
         this._updateSubtitleForChunk(i, chunk.text);
         this._updateVoiceStatus('speaking', `Đang giảng — đoạn ${i + 1}`);
-        this._updateSeekSlider(false);
+        if (!this.ttsEngine._fullText && this._chunks) {
+          this.ttsEngine._fullText = this._chunks.map(c => c.text || '').join(' ');
+        }
+        this._updateSeekProgress(this._chunks.length > 0 ? this._currentChunkIdx / this._chunks.length : 0);
+        this._updateSeekSlider(true);
+        document.getElementById('seek-duration').textContent = this._formatTime(1);
+        document.getElementById('seek-slider').max = 100;
       },
 
       onChunkEnd: (i, chunk) => {
